@@ -118,12 +118,14 @@ class Coordinates:
                     fallbacks.append(f'{key} from {source}')
                 break
             else:
-                raise ValueError(f'Cannot determine {key} origin from head or canvas')
+                role = 'symbol' if symbol else 'footprint'
+                raise ValueError(f'{role}: Cannot determine {key} origin from head or canvas')
         self.x, self.y = resolved
         self.sign = -1 if symbol else 1
         if fallbacks:
             log.warning(
-                'Missing or invalid head origin; using %s (origin %s, %s).',
+                '%s: Missing or invalid head origin; using %s (origin %s, %s).',
+                'symbol' if symbol else 'footprint',
                 ', '.join(fallbacks),
                 f(self.x),
                 f(self.y),

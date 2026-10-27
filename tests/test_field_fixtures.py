@@ -281,3 +281,30 @@ def test_stm32_native_upgrade_and_export_preserve_both_units(tmp_path):
     )
     assert run.returncode == 0, run.stderr
     assert len(list(svg.glob('*.svg'))) == 2
+
+
+@pytest.mark.parametrize('uuid', [STM32, BUZZER, *POLYGON_IDS])
+def test_new_missing_symbol_origins_identify_the_document(uuid, caplog):
+    response = load(uuid)
+    converted = convert_response(response)
+    warnings = [r.getMessage() for r in caplog.records if 'head origin' in r.getMessage()]
+    assert warnings and all(w.startswith('symbol:') for w in warnings)
+    assert max(abs(v) for p in converted.pins for v in (p.x, p.y)) < 40
+
+
+@pytest.mark.parametrize('uuid', [HEADER, STM32, *POLYGON_IDS])
+def test_footprint_canvas_fallback_preserves_real_pad_offsets(uuid, caplog):
+    response = load(uuid)
+    expected = convert_response(response)
+    fp = response['result']['packageDetail']['dataStr']
+    fp['head'].pop('x')
+    fp['head'].pop('y')
+    caplog.clear()
+    converted = convert_response(response)
+    assert converted.pads == expected.pads
+    assert converted.footprint == expected.footprint
+    warnings = [r.getMessage() for r in caplog.records if 'head origin' in r.getMessage()]
+    assert any(w.startswith('footprint:') for w in warnings)
+    # Preserve real physical offsets (the header is 40 mm long); no canvas-sized
+    # 100+ mm displacement or rescaling may be introduced by this fallback.
+    assert max(abs(v) for p in converted.pads for v in (p.x, p.y)) < 21

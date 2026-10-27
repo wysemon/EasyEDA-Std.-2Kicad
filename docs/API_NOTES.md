@@ -482,3 +482,9 @@ unit, or any unparseable unit element fail the whole component. Duplicate pin
 numbers still warn and remain stored. Limits are 100 units, 10,000 combined
 shapes and the existing total primitive bound. Cache pin counts include all units;
 a legacy unit-1-only export must be rebuilt from raw bytes without HTTP.
+
+Origin fallback warnings now identify `symbol` or `footprint` (including failures
+to resolve an origin). New imported fixtures omit symbol head.x/y and verify the
+same 3000/4000 canvas fallback. Their footprint head origins are present and
+agree with canvas fields 16/17; tests remove those head fields and verify
+byte-identical footprints and unchanged pad positions, not an inferred recentering.
