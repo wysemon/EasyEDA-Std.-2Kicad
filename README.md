@@ -105,13 +105,21 @@ run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
 
 ### Caching and validation
 
-A component is skipped when its symbol and footprint files already exist. If only raw data is cached, the app reports `re-converting from cache` and rebuilds without downloading again.
+Complete, unchanged 2D libraries are skipped. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
 
 Use `convert` after updating the app to rebuild existing output offline. For older output, add the newly generated UUID-suffixed libraries in KiCad. `--force` downloads fresh component data and overwrites generated output.
 
-`--validate` runs KiCad's upgrade commands on temporary copies and reports PASS/FAIL. It leaves your originals untouched. If `kicad-cli` is not on PATH, validation is skipped with one note. This checks that KiCad can read the libraries; it does not check the design's electrical or manufacturing rules.
+`--validate` runs KiCad's upgrade commands on temporary copies and reports PASS/FAIL. It leaves your originals untouched. Explicit `--validate` fails if `kicad-cli` is missing from PATH. Install KiCad 8/9 and add its command-line tools to PATH, then try again. This checks that KiCad can read the libraries; it does not check the design's electrical or manufacturing rules.
 
 `--dry-run` uses a temporary directory and does not save output or change the log. Cached dry runs make no requests, even with `--force`. An uncached dry run may fetch component data.
+
+### Safe updates and older output
+
+New libraries are built privately and validated before they replace anything. A completion file records their hashes. If writing or validation fails, the previous libraries stay available. After an interrupted publish, the next normal run restores the previous files and tries again. Dry runs leave your output untouched. Run only one converter process per output folder.
+
+Old converter-generated footprints with model references are rebuilt from their cache automatically, including older library names. No model files are deleted. You can remove unused STEP/WRL files yourself after checking that other projects do not use them. Raw JSON containing `SVGNODE` metadata is harmless and stays unchanged.
+
+Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uuid>`). Keep a copy of any hand-edited libraries. When a completion file reveals edits, the converter also saves those bytes in a `.previous-<hash>` file before rebuilding. Changed attribution is kept in `CREDITS.previous-<hash>.txt`. Libraries created by other tools are never overwritten.
 
 ### Files are relative to where you run the command
 

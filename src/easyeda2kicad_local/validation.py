@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 def validate_libraries(folder: Path, name: str):
     executable = shutil.which('kicad-cli')
     if executable is None:
-        print('Validation skipped: kicad-cli is not on PATH.')
-        return True
+        print('Validation unavailable: install KiCad 8/9 and add kicad-cli to PATH, then retry --validate.')
+        return False
     passed = True
     with tempfile.TemporaryDirectory(prefix='ee2kicad-validate-') as temporary:
         work = Path(temporary)

@@ -165,8 +165,11 @@ cooldown must be at least 1 second (default 4 + 0–2 seconds jitter remains).
 Retry-After seconds/dates are capped at 300 seconds with a one-line warning.
 Two consecutive 403/429 responses still stop the entire run.
 
-A cached item is complete only with a `.kicad_sym` file and a
-`.pretty/*.kicad_mod` file. Incomplete libraries are rebuilt from raw cache
+A cached item is complete only with usable `.kicad_sym` and
+`.pretty/*.kicad_mod` files containing pins/pads and no model references.
+New output also has `.ee2kicad-complete.json` with per-file SHA-256 hashes.
+A pending publish journal always makes output incomplete. Legacy 2D output
+without a manifest is accepted after structural checks. Incomplete libraries are rebuilt from raw cache
 without requests, including no footprint fallback. Missing
 fallback cache is an offline error; explicit `--force` allows retrieval.
 Per-item exceptions are counted/logged and processing continues, except StopRun.
@@ -204,8 +207,23 @@ without fetching or attaching models. Original raw responses are preserved.
 
 All generated libraries, CREDITS and raw/fallback cache files use same-directory
 temporary files followed by `os.replace()`. Interrupted writes leave the old
-complete file (or no file), and normal failures remove temporary files. This is
-per-file atomic replacement, not a transaction across all output files.
+complete file (or no file), and normal failures remove temporary files. Conversions now stage every artifact before publishing. Explicit validation runs
+on disposable copies before publication and fails if KiCad is unavailable.
+Publication backs up replaced files, records `.ee2kicad-pending.json`, replaces
+artifacts and installs completion metadata last. Normal failures roll back;
+the next non-dry run recovers a journal left by process interruption. Recovery
+preserves caches and unrelated files. This is recoverable multi-file publication,
+not an atomic directory swap or a guarantee against filesystem/power failure.
+A hard kill before journaling can leave an unused hidden staging directory.
+Do not run concurrent conversions into the same component folder.
+
+Legacy converter-owned footprints with actual `(model ...)` nodes are regenerated
+from cached source. Pre-UUID library names are regenerated in place as aliases;
+current UUID-suffixed libraries are also written. Source SVGNODE metadata alone
+does not trigger migration. Existing STEP/WRL files are never removed. Missing
+footprint cache fails offline. Changed attribution and manifest-detected edits
+are preserved in hash-suffixed previous files. Unrelated library files are not
+overwritten.
 
 CI runs the offline suite on Ubuntu and Windows, on Python 3.11 and 3.12.
 Only dependency installation uses the network; component HTTP requests

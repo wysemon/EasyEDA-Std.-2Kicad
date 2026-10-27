@@ -12,8 +12,9 @@ from easyeda2kicad_local.workflow import run_items
 
 def test_missing_kicad_one_note(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr('easyeda2kicad_local.validation.shutil.which', lambda _: None)
-    assert validate_libraries(tmp_path, 'unused')
-    assert capsys.readouterr().out.splitlines() == ['Validation skipped: kicad-cli is not on PATH.']
+    assert not validate_libraries(tmp_path, 'unused')
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 1 and 'Validation unavailable' in lines[0] and 'PATH' in lines[0]
 
 
 def test_validation_uses_disposable_copies(response, tmp_path, monkeypatch, capsys):
