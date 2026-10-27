@@ -1,4 +1,4 @@
-# [**EasyEDA-Std.-2Kicad**](https://github.com/wysemon/EasyEDA-Std.-2Kicad)
+# **EasyEDA-Std.-2Kicad**
 
 Paste a public **EasyEDA Standard** component link and get a KiCad 8/9/10 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
 
