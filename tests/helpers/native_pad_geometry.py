@@ -38,6 +38,7 @@ def main():
             result.append(
                 {
                     'number': pad.GetNumber(),
+                    'attribute': int(pad.GetAttribute()),
                     'at': point(pad.GetPosition()),
                     'angle': pad.GetOrientationDegrees(),
                     'size': point(pad.GetSize()),

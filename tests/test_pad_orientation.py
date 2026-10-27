@@ -23,6 +23,7 @@ NATIVE_CASES = (
     [(case, raw, 'real') for case, raw in CASES]
     + [(case, raw, 'custom-derived') for case, raw in CASES if raw.startswith('PAD~RECT')]
     + [(case, raw, 'back-derived') for case, raw in CASES if raw.split('~')[6] == '1']
+    + [(case, raw, 'npth-derived') for case, raw in CASES if raw.split('~')[6] == '11']
 )
 
 
@@ -122,6 +123,8 @@ def test_native_easyeda_and_kicad_geometry_agree(case, raw, calibration, pcbnew_
         fields[1] = 'POLYGON'
     elif calibration == 'back-derived':
         fields[6] = '2'
+    elif calibration == 'npth-derived':
+        fields[15] = 'N'
     raw = '~'.join(fields)
     data = document(case, raw)
     coords = Coordinates(data)
@@ -145,6 +148,7 @@ def test_native_easyeda_and_kicad_geometry_agree(case, raw, calibration, pcbnew_
     original, generated = result['source'][0], result['generated'][0]
     assert len(original['outline']) >= 3 and len(generated['outline']) >= 3
     assert generated['number'] == original['number']
+    assert generated['attribute'] == original['attribute']
     assert generated['layers'] == original['layers']
     for key in ('at', 'drill'):
         assert generated[key] == pytest.approx(original[key], abs=0.0001)

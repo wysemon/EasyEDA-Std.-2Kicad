@@ -16,7 +16,8 @@ as bytes; fallback responses live separately in `package_raw.json`.
 
 Positions below are zero-based after splitting a record on `~`, including type.
 `dataStr` may also arrive as a JSON string. Missing, empty and `undefined` fields
-use defaults. One drawing unit is 0.254 mm, regardless of canvas grid units.
+use defaults where supported; pad plating and copper text geometry require
+explicit verified values. One drawing unit is 0.254 mm, regardless of canvas grid units.
 Subtract each document's head.x/y; negate Y only for symbols. When head.x/y
 is missing, blank, `undefined` or invalid, use the canvas origin per axis:
 symbol canvas indices 13/14, footprint canvas indices 16/17 (zero-based,
@@ -44,6 +45,11 @@ Round fixture pads: 7.6 units = 1.9304 mm; drill 3.936 units = 0.999744 mm;
 holeLength 3.937 differs only by rounding, so do not create a microscopic slot.
 Square fixture pads: 5.937 units = 1.507998 mm; pitch 60 x 70 units =
 15.24 x 17.78 mm. Round pad pitch: 10 units = 2.54 mm.
+PAD plating accepts exactly `Y` (plated) or `N` (non-plated); unknown, missing,
+lowercase or malformed flags fail rather than falling through to NPTH. Real
+fixture pads verify `Y`. The `N` mapping is a derived calibration checked with
+native KiCad; it is not an additional real non-plated component sample. NPTH
+pads use outer copper/mask layers, matching KiCad's native EasyEDA importer.
 
 **Fixture discrepancy resolved by user:** MAX98357A has **9** P records,
 not 7. Speaker pins `+` and `--` duplicate numbers 1 and 2 of the seven header
@@ -69,6 +75,16 @@ include only extrema on the arc, plus stroke width, not the full circle.
 KiCad 8/9 modern S-expressions use start/mid/end arcs. SVG circular arcs are
 converted through the SVG endpoint-to-center algorithm; elliptical arcs are
 sampled as polylines and reported. No third-party conversion source is copied.
+Filled SVG regions support a single straight-edged contour only. A second
+moveto or drawing after close is rejected instead of bridging contours or
+guessing hole/winding semantics. Separate stroked contours remain separate.
+Empty/degenerate fills, move-only arcs and zero-length tracks cannot satisfy
+an essential copper record. TEXT uses layer field 7 for the same essential
+classification as other copper records, including unsupported inner copper.
+Geometry that collapses at the existing six-decimal output precision is also
+empty; coordinate overflow fails rather than writing infinity into a library.
+Malformed copper text fails; missing coordinates, size, stroke, rotation or
+mirror flags cannot use decoration defaults to invent copper geometry.
 
 ## Unverified / bounded support
 
@@ -184,11 +200,34 @@ A cached item is complete only with usable `.kicad_sym` and
 New output also has `.ee2kicad-complete.json` with per-file SHA-256 hashes.
 A pending publish journal always makes output incomplete. Legacy 2D output
 without a manifest is accepted after structural and cached source-count checks.
+Completion also checks the full UUID against raw.json and the symbol's EasyEDA
+UUID property, the symbol/footprint entry names against their filenames, and
+the symbol's Footprint property against its paired library. Comparisons of UUIDs
+ignore hex letter case. Conflicting cache/manifest/target-symbol identities fail
+before any replacement or initial cache write, even with `--force`. The usual
+title-plus-eight-UUID-character naming stays unchanged; a collision requires a
+different output root rather than sharing another component's folder.
 Legacy unit-1 outputs with nonempty subparts, or outputs missing source pins,
 pads, vias or holes, cannot silently pass this check. Incomplete libraries are rebuilt from raw cache
 without requests, including no footprint fallback. Missing
 fallback cache is an offline error; explicit `--force` allows retrieval.
 Per-item exceptions are counted/logged and processing continues, except StopRun.
+
+### Parser work limits
+
+HTTP bodies are read incrementally and limited to 16 MiB; an oversized body
+fails that item without retrying. Denial counting and cooldowns stay in effect
+on read failures and rejected bodies. Cached/parser inputs
+are limited to 16 MiB per file or document; each document
+allows 10,000 shape records. A geometry string allows 1,000,000 characters and
+100,000 parsed/emitted points (including ellipse samples). Each symbol or
+footprint allows 100,000 generated drawing primitives. The local KiCad reader
+allows 250,000 tokens and 64 nesting levels and scans flat expressions linearly.
+These generous bounds prevent oversized coordinates, sampling amplification
+and deep recursion from exhausting resources. Exceeding a limit on an essential
+record or whole component fails before publication; optional drawings retain
+their existing warning/skip behavior. Limits do not truncate or rewrite source
+bytes. Existing files remain available after a rejected conversion.
 
 Both launchers call the same stdlib-only `scripts/bootstrap.py`. The ready-marker
 contains the SHA-256 of pyproject.toml, and only advances after successful pip

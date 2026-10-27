@@ -8,9 +8,9 @@ from pathlib import Path
 
 from .client import UUID, EasyEDAClient, FetchError, StopRun
 from .converter import document, safe_name, write_conversion
-from .files import atomic_write
+from .files import MAX_INPUT_BYTES, atomic_write, read_limited
+from .publication import check_identity, recover
 from .publication import libraries_complete as libraries_complete
-from .publication import recover
 from .validation import validate_libraries
 
 log = logging.getLogger(__name__)
@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 
 def read_response(raw, expected=None):
     """Validate the API envelope and requested identity without altering bytes."""
+    if len(raw) > MAX_INPUT_BYTES:
+        raise FetchError('component response exceeds supported size')
     data = json.loads(raw)
     if not isinstance(data, dict) or data.get('success') is not True:
         raise FetchError('Component is unavailable/private or API returned success:false')
@@ -35,7 +37,7 @@ def find_cache(root, uuid):
     if root.exists():
         for raw in root.glob('*/raw.json'):
             try:
-                data = json.loads(raw.read_bytes())
+                data = json.loads(read_limited(raw))
                 if data.get('result', {}).get('uuid', '').lower() == uuid:
                     matches.append(raw.parent)
             except (ValueError, AttributeError, OSError):
@@ -65,7 +67,7 @@ def resolve_package(data, folder, client=None, *, force=False):
         raise ValueError('Missing packageDetail and valid head.puuid')
     cached = folder / 'package_raw.json'
     if cached.exists() and not force:
-        return read_response(cached.read_bytes(), puuid)['result']
+        return read_response(read_limited(cached), puuid)['result']
     if client is None:
         raise ValueError('Footprint fallback is not cached; run fetch --force to retrieve it')
     log.warning('Missing packageDetail; fetching footprint fallback %s', puuid)
@@ -126,12 +128,13 @@ def run_items(
                 if cached_only and not cached:
                     raise ValueError('No raw.json cache found; fetch this component first')
                 if cached and not dry_run:
+                    check_identity(cached, uuid)
                     # Restore a previous complete snapshot before deciding
                     # whether an interrupted replacement can be skipped.
                     recover(cached)
                 if (
                     cached
-                    and libraries_complete(cached)
+                    and libraries_complete(cached, expected_uuid=uuid)
                     and not cached_only
                     and not force
                     and not dry_run
@@ -151,10 +154,11 @@ def run_items(
                 using_cache = bool(cached and (cached_only or dry_run or not force))
                 if using_cache:
                     log.info('re-converting from cache: %s', uuid)
-                raw = (cached / 'raw.json').read_bytes() if using_cache else client.component(uuid)
+                raw = read_limited(cached / 'raw.json') if using_cache else client.component(uuid)
                 data = read_response(raw, uuid)
                 title = data['result'].get('title') or uuid
                 folder = cached or root / f'{safe_name(title)}_{uuid[:8]}'
+                check_identity(folder, uuid, name=f'{safe_name(title)}_{uuid[:8]}')
                 # New downloads remain available for an offline retry even if
                 # conversion fails. Existing cache bytes change only on commit.
                 if not dry_run and not (folder / 'raw.json').exists():
@@ -165,7 +169,7 @@ def run_items(
                     sources = {'raw.json': raw}
                     if cached and (cached / 'package_raw.json').exists():
                         atomic_write(
-                            target / 'package_raw.json', (cached / 'package_raw.json').read_bytes()
+                            target / 'package_raw.json', read_limited(cached / 'package_raw.json')
                         )
                     package = resolve_package(
                         data,

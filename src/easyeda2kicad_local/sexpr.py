@@ -3,20 +3,33 @@
 import json
 import re
 
+from .files import MAX_INPUT_BYTES
+
 TOKEN = re.compile(r'\s*(\(|\)|"(?:\\.|[^"\\])*"|[^\s()"]+)')
+MAX_DEPTH = 64
+MAX_TOKENS = 250_000
 
 
 def loads(text):
     """Read exactly one complete expression, respecting quoted and escaped text."""
+    if len(text) > MAX_INPUT_BYTES:
+        raise ValueError('KiCad expression exceeds supported size')
     stack, root, offset = [], None, 0
+    tokens = 0
     while offset < len(text):
-        if not text[offset:].strip():
-            break
         match = TOKEN.match(text, offset)
         if not match:
+            # Scan trailing whitespace only once, not once per token (quadratic).
+            if not text[offset:].strip():
+                break
             raise ValueError('invalid KiCad expression')
+        tokens += 1
+        if tokens > MAX_TOKENS:
+            raise ValueError('KiCad expression exceeds supported token count')
         token, offset = match[1], match.end()
         if token == '(':
+            if len(stack) >= MAX_DEPTH:
+                raise ValueError('KiCad expression exceeds supported nesting depth')
             node = []
             if stack:
                 stack[-1].append(node)

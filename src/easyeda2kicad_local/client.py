@@ -11,6 +11,8 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from .files import MAX_INPUT_BYTES
+
 log = logging.getLogger(__name__)
 EDITOR_VERSION = '6.5.60'
 UUID = re.compile(r'^[a-fA-F0-9]{32}$')
@@ -85,25 +87,32 @@ class EasyEDAClient:
         for attempt in range(3):
             self.sleep(max(0.0, self.next_request - self.clock()))
             try:
-                response = self.http.get(
-                    url, params=params, headers=HEADERS, follow_redirects=False
-                )
+                with self.http.stream(
+                    'GET', url, params=params, headers=HEADERS, follow_redirects=False
+                ) as response:
+                    # Count denials before reading a body, including across items.
+                    if response.status_code in (403, 429):
+                        self.denied += 1
+                        if self.denied >= 2:
+                            raise StopRun(
+                                'Two consecutive 429/403 responses; stopping the whole run. Wait before retrying and check that the component is public; do not bypass access restrictions.'
+                            )
+                    else:
+                        self.denied = 0
+                    content = bytearray()
+                    if response.is_success:
+                        for chunk in response.iter_bytes(chunk_size=65_536):
+                            if len(content) + len(chunk) > MAX_INPUT_BYTES:
+                                raise FetchError(
+                                    'Component response exceeds 16 MiB; no conversion attempted'
+                                )
+                            content.extend(chunk)
             except httpx.RequestError as e:
-                self.next_request = self.clock() + self.delay + self.jitter()
                 raise FetchError(
                     f'Network request failed ({type(e).__name__}); check your internet connection/proxy and retry.'
                 ) from e
-            self.next_request = self.clock() + self.delay + self.jitter()
-            # Count denials across attempts and items; retrying must not reset
-            # the signal that EasyEDA is asking this client to stop.
-            if response.status_code in (403, 429):
-                self.denied += 1
-                if self.denied >= 2:
-                    raise StopRun(
-                        'Two consecutive 429/403 responses; stopping the whole run. Wait before retrying and check that the component is public; do not bypass access restrictions.'
-                    )
-            else:
-                self.denied = 0
+            finally:
+                self.next_request = self.clock() + self.delay + self.jitter()
             if response.status_code in (403, 429) or 500 <= response.status_code <= 599:
                 if attempt == 2:
                     raise FetchError(
@@ -135,7 +144,7 @@ class EasyEDAClient:
                 raise FetchError(
                     f'HTTP {response.status_code}; redirects and authentication are not followed; check that the link is a public Standard component.'
                 )
-            return response.content
+            return bytes(content)
         raise AssertionError('unreachable')
 
     def component(self, uuid):

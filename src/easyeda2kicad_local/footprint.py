@@ -98,13 +98,16 @@ def parse_pad(raw, coords):
     if shape is None or min(w, h) <= 0:
         raise ValueError('unsupported/invalid pad shape or size')
     through = t[6] == '11'
+    if t[15] not in ('Y', 'N'):
+        raise ValueError(f'unsupported pad plating value {t[15]!r}; expected Y or N')
     kind = ('thru_hole' if t[15] == 'Y' else 'np_thru_hole') if through else 'smd'
     if through and radius <= 0:
         raise ValueError('through-hole pad without drill')
     if through and num(t[13]) < 0:
         raise ValueError('negative drill-slot length')
     if through:
-        layers = '"*.Cu" "*.Mask"'
+        # KiCad's native EasyEDA importer uses outer copper/mask only for NPTH.
+        layers = '"*.Cu" "*.Mask"' if kind == 'thru_hole' else '"F.Cu" "B.Cu" "*.Mask"'
     elif t[6] in ('1', '2'):
         side = 'F' if t[6] == '1' else 'B'
         layers = ' '.join(q(f'{side}.{s}') for s in ('Cu', 'Paste', 'Mask'))
@@ -147,9 +150,11 @@ def footprint_graphic(raw, coords):
         ln, width = layer(t[2]), num(t[1], 1) * UNIT
         if kind == 'ARC':
             return svg_graphics(t[4], coords, width, False, ln)
-        pts = point_pairs(t[4])
+        pts = [coords.xy(*p) for p in point_pairs(t[4])]
+        if not any(a != b for a, b in zip(pts, pts[1:])):
+            raise ValueError('empty track geometry')
         return [
-            f'(fp_line (start {coords.xy(*a)}) (end {coords.xy(*b)}) {stroke(width)} (layer {q(ln)}))'
+            f'(fp_line (start {a}) (end {b}) {stroke(width)} (layer {q(ln)}))'
             for a, b in zip(pts, pts[1:])
         ]
     if kind == 'SOLIDREGION':
@@ -159,6 +164,8 @@ def footprint_graphic(raw, coords):
     if kind == 'TEXT':
         mirror = ' (justify mirror)' if t[6] == '1' else ''
         size = num(t[9], 5) * UNIT
+        if round(size, 6) <= 0 or not t[10].strip() or num(t[4], 0.6) <= 0:
+            raise ValueError('empty or invalid footprint text')
         return [
             f'(fp_text user {q(t[10])} (at {coords.xy(t[2], t[3])} {f(num(t[5]))}) '
             f'(layer {q(layer(t[7]))}) (effects (font (size {f(size)} {f(size)}) '
@@ -166,14 +173,22 @@ def footprint_graphic(raw, coords):
         ]
     if kind == 'CIRCLE':
         x, y, radius = num(t[1]), num(t[2]), num(t[3])
+        center, end = coords.xy(x, y), coords.xy(x + radius, y)
+        if radius <= 0 or center == end:
+            raise ValueError('empty circle geometry')
         return [
-            f'(fp_circle (center {coords.xy(x, y)}) (end {coords.xy(x + radius, y)}) '
+            f'(fp_circle (center {center}) (end {end}) '
             f'{stroke(num(t[4], 1) * UNIT)} (fill none) (layer {q(layer(t[5]))}))'
         ]
     if kind == 'RECT':
         x, y = num(t[1]), num(t[2])
+        start, end = coords.xy(x, y), coords.xy(x + num(t[3]), y + num(t[4]))
+        if min(num(t[3]), num(t[4])) <= 0 or any(
+            a == b for a, b in zip(start.split(), end.split())
+        ):
+            raise ValueError('empty rectangle geometry')
         return [
-            f'(fp_rect (start {coords.xy(x, y)}) (end {coords.xy(x + num(t[3]), y + num(t[4]))}) '
+            f'(fp_rect (start {start}) (end {end}) '
             f'{stroke(0.254)} (fill none) (layer {q(layer(t[5]))}))'
         ]
     if kind == 'HOLE':

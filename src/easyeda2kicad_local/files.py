@@ -4,6 +4,17 @@ import os
 import tempfile
 from pathlib import Path
 
+MAX_INPUT_BYTES = 16 * 1024 * 1024
+
+
+def read_limited(path: Path):
+    """Bound input allocation without changing cached bytes or trusting stat sizes."""
+    with path.open('rb') as stream:
+        content = stream.read(MAX_INPUT_BYTES + 1)
+    if len(content) > MAX_INPUT_BYTES:
+        raise ValueError(f'input exceeds {MAX_INPUT_BYTES} byte limit: {path}')
+    return content
+
 
 def atomic_write(path: Path, content: str | bytes):
     """Replace one file via a flushed sibling; multi-file safety is publication's job."""

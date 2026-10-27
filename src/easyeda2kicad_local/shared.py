@@ -6,11 +6,13 @@ import math
 import re
 import unicodedata
 
+from .files import MAX_INPUT_BYTES
 from .geometry import path_segments
 
 log = logging.getLogger(__name__)
 # EasyEDA's drawing unit is 10 mil, irrespective of the editor's displayed grid.
 UNIT = 0.254
+MAX_SHAPES = 10_000
 
 
 def num(value, default=0.0):
@@ -65,7 +67,13 @@ def safe_name(title):
 
 def document(value):
     """Accept dataStr as either an API object or its JSON-encoded string form."""
-    return json.loads(value) if isinstance(value, str) else value
+    if isinstance(value, str) and len(value) > MAX_INPUT_BYTES:
+        raise ValueError('source document exceeds supported size')
+    data = json.loads(value) if isinstance(value, str) else value
+    shapes = data.get('shape', [])
+    if len(shapes) > MAX_SHAPES or sum(len(s) for s in shapes) > MAX_INPUT_BYTES:
+        raise ValueError('component geometry exceeds supported size')
+    return data
 
 
 def prefix(value):
@@ -122,7 +130,10 @@ class Coordinates:
             )
 
     def point(self, x, y):
-        return ((num(x) - self.x) * UNIT, (num(y) - self.y) * UNIT * self.sign)
+        point = ((num(x) - self.x) * UNIT, (num(y) - self.y) * UNIT * self.sign)
+        if not all(math.isfinite(v) for v in point):
+            raise ValueError('nonfinite converted coordinate')
+        return point
 
     def xy(self, x, y):
         return ' '.join(map(f, self.point(x, y)))
@@ -146,18 +157,28 @@ def poly(points, width, symbol, layer_name='F.Fab', solid=False):
 
 
 def svg_graphics(path, coords, width, symbol, layer_name='F.Fab', solid=False):
-    segments = list(path_segments(path))
+    segments = list(path_segments(path, single_contour=solid))
     if solid:
         if any(kind != 'line' for kind, _ in segments):
             raise ValueError('curved solid region not supported')
         if not segments:
             raise ValueError('empty solid region')
-        points = [coords.point(*segments[0][1][0])]
-        points.extend(coords.point(*pts[-1]) for _, pts in segments)
+        points = [tuple(round(v, 6) for v in coords.point(*segments[0][1][0]))]
+        points.extend(tuple(round(v, 6) for v in coords.point(*pts[-1])) for _, pts in segments)
+        # Shift before computing area to avoid cancellation at large origins.
+        x0, y0 = points[0]
+        local = [(x - x0, y - y0) for x, y in points]
+        area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(local, local[1:] + local[:1]))
+        if len(set(points)) < 3 or not math.isfinite(area) or area == 0:
+            raise ValueError('empty or degenerate solid region')
         return [poly(points, width, symbol, layer_name, True)]
     result = []
     for kind, pts in segments:
-        pts = [coords.point(*p) for p in pts]
+        # Check the actual serialized precision, not sub-micrometre differences
+        # that would become coincident copper vertices in the output.
+        pts = [tuple(round(v, 6) for v in coords.point(*p)) for p in pts]
+        if not any(p != pts[0] for p in pts[1:]):
+            continue
         if kind == 'arc':
             start, mid, end = pts
             body = (
