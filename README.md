@@ -153,7 +153,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 ## Limits and source rights
 
-- Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported records warn and are skipped. Unknown electrical types become unspecified. Multi-unit symbols warn and use unit 1 only when recognized.
+- Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols with nonempty `subparts` are rejected; unit 1 alone is not a complete component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
 - Pad/text rotation signs and true oval-slot orientation still need a source-to-KiCad comparison.
 - Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.

@@ -70,21 +70,30 @@ def convert_response(response, package=None, *, library_name=None):
     sc, fc = Coordinates(data, True), Coordinates(fp)
     pins, pads, sg, fg = [], [], [], []
     for raw in fp.get('shape', []):
+        fields = raw.split('~')
+        kind = fields[0]
+        layer_index = {'TRACK': 2, 'ARC': 2, 'SOLIDREGION': 1, 'RECT': 5, 'CIRCLE': 5}.get(kind)
+        copper = layer_index is not None and len(fields) > layer_index and fields[layer_index] in ('1', '2', '11')
         try:
-            if raw.startswith('PAD~'):
+            if kind == 'PAD':
                 pads.append(parse_pad(raw, fc))
             else:
                 fg.extend(footprint_graphic(raw, fc))
         except (ValueError, IndexError, KeyError, TypeError) as e:
-            log.warning('Skipping footprint element (%s): %s', e, raw)
+            if kind in ('PAD', 'VIA', 'HOLE') or copper:
+                raise ValueError(f'{result["uuid"]}: invalid essential footprint {kind}: {e}; no new libraries published') from e
+            log.warning('%s: skipping optional footprint element (%s): %s', result['uuid'], e, raw)
     for raw in data.get('shape', []):
+        kind = raw.split('~', 1)[0]
         try:
-            if raw.startswith('P~'):
+            if kind == 'P':
                 pins.append(parse_pin(raw, sc))
             else:
                 sg.extend(symbol_graphic(raw, sc))
         except (ValueError, IndexError, KeyError, TypeError) as e:
-            log.warning('Skipping symbol element (%s): %s', e, raw)
+            if kind == 'P':
+                raise ValueError(f'{result["uuid"]}: invalid essential symbol pin: {e}; no new libraries published') from e
+            log.warning('%s: skipping optional symbol element (%s): %s', result['uuid'], e, raw)
     for number, count in Counter(p.number for p in pins).items():
         if count > 1:
             log.warning('Duplicate symbol pin number %s (%s records retained)', number, count)

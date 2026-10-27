@@ -2,13 +2,13 @@
 import math
 from dataclasses import dataclass
 
-from .geometry import numbers
+from .geometry import point_pairs
 from .shared import UNIT, effects, f, num, q, stroke, svg_graphics
 
 LAYERS = {'1': 'F.Cu', '2': 'B.Cu', '3': 'F.SilkS', '4': 'B.SilkS',
           '5': 'F.Paste', '6': 'B.Paste', '7': 'F.Mask', '8': 'B.Mask',
-          '10': 'Edge.Cuts', '12': 'F.Fab', '13': 'F.Fab', '14': 'B.Fab',
-          '99': 'F.Fab', '100': 'F.Fab', '101': 'F.Fab'}
+          '10': 'Edge.Cuts', '12': 'Dwgs.User', '13': 'F.Fab', '14': 'B.Fab',
+          '99': 'User.3', '100': 'User.4', '101': 'User.5'}
 
 
 def layer(value):
@@ -65,6 +65,8 @@ def parse_pad(raw, coords):
     kind = ('thru_hole' if t[15] == 'Y' else 'np_thru_hole') if through else 'smd'
     if through and radius <= 0:
         raise ValueError('through-hole pad without drill')
+    if through and num(t[13]) < 0:
+        raise ValueError('negative drill-slot length')
     if through:
         layers = '"*.Cu" "*.Mask"'
     elif t[6] in ('1', '2'):
@@ -74,10 +76,7 @@ def parse_pad(raw, coords):
         raise ValueError(f'unsupported pad layer {t[6]}')
     polygon = []
     if shape == 'custom':
-        ns = numbers(t[10])
-        if len(ns) < 6 or len(ns) % 2:
-            raise ValueError('invalid polygon pad')
-        for px, py in zip(ns[::2], ns[1::2]):
+        for px, py in point_pairs(t[10], minimum=3):
             px, py = coords.point(px, py)
             a = math.radians(-angle)
             polygon.append(((px - x) * math.cos(a) - (py - y) * math.sin(a),
@@ -94,8 +93,7 @@ def footprint_graphic(raw, coords):
         ln, width = layer(t[2]), num(t[1], 1) * UNIT
         if kind == 'ARC':
             return svg_graphics(t[4], coords, width, False, ln)
-        ns = numbers(t[4])
-        pts = list(zip(ns[::2], ns[1::2]))
+        pts = point_pairs(t[4])
         return [f'(fp_line (start {coords.xy(*a)}) (end {coords.xy(*b)}) {stroke(width)} (layer {q(ln)}))'
                 for a, b in zip(pts, pts[1:])]
     if kind == 'SOLIDREGION':
@@ -118,10 +116,14 @@ def footprint_graphic(raw, coords):
                 f'{stroke(.254)} (fill none) (layer {q(layer(t[5]))}))']
     if kind == 'HOLE':
         diameter = 2 * num(t[3]) * UNIT
+        if diameter <= 0:
+            raise ValueError('hole diameter must be positive')
         return [f'(pad "" np_thru_hole circle (at {coords.xy(t[1], t[2])}) '
                 f'(size {f(diameter)} {f(diameter)}) (drill {f(diameter)}) (layers "*.Cu" "*.Mask"))']
     if kind == 'VIA':
         diameter, drill = num(t[3]) * UNIT, 2 * num(t[5]) * UNIT
+        if min(diameter, drill) <= 0:
+            raise ValueError('via size and drill must be positive')
         return [f'(pad "" thru_hole circle (at {coords.xy(t[1], t[2])}) (size {f(diameter)} {f(diameter)}) '
                 f'(drill {f(drill)}) (layers "*.Cu" "*.Mask"))']
     if kind == 'SVGNODE':

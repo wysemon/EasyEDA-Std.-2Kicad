@@ -54,7 +54,11 @@ Do not discard either speaker connection. TP4056 has four pins. Both packages ha
 
 1/2 = F.Cu/B.Cu; 3/4 = F.SilkS/B.SilkS; 5/6 = F.Paste/B.Paste;
 7/8 = F.Mask/B.Mask; 10 = Edge.Cuts; 11 = through-hole *.Cu + *.Mask;
-12/13 = F.Fab; 14 = B.Fab; 99/100/101 = F.Fab. Unmapped layers warn.
+12 = Dwgs.User (Document); 13/14 = F.Fab/B.Fab (Top/Bottom Assembly);
+99/100/101 = User.3/User.4/User.5 (component/lead/marking shapes).
+These mappings match KiCad 9's Standard importer and the layer names embedded
+in our real fixtures. Unmapped drawing layers warn; unknown pad layers fail.
+We do not map model layer 19 or add inner-copper support in this audit.
 Generate F.CrtYd from declared geometry BBox plus 0.25 mm (include pad extents).
 KiCad 8/9 modern S-expressions use start/mid/end arcs. SVG circular arcs are
 converted through the SVG endpoint-to-center algorithm; elliptical arcs are
@@ -65,17 +69,21 @@ sampled as polylines and reported. No third-party conversion source is copied.
 In the original MAX98357A/TP4056 fixtures, only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur.
 Other documented records are implemented conservatively and must be checked
 against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE, custom polygon pads,
-slots, multilayer SMD, electrical-type mappings, pin clock/inversion, subparts.
-Unsupported paths or records warn with their raw line and are skipped.
-Subparts are unverified: warn and use unit 1 only when a recognizable shape
-container is supplied; do not guess unrecognized layouts.
+slots, multilayer SMD, pin clock/inversion, subparts.
+Unsupported optional drawings warn with UUID and raw line and are skipped.
+Malformed P/PAD/VIA/HOLE records and supported copper geometry fail the whole
+component before publication. Empty pin/pad collections fail too. Duplicate
+pin numbers and unmatched physical pads remain allowed and are retained.
+Nonempty `subparts` is an explicit unsupported multi-unit error, even alongside
+top-level shapes; empty/missing subparts keeps single-unit behavior. There is
+no unit-1 compatibility option because no verified complete unit layout exists.
 
 ## Implementation and validation plan
 
 1. Build a sequential httpx fetcher with pacing, bounded retries, cross-item
    throttling detection, byte-preserving cache and append-only status log.
 2. Implement independent tolerant geometry parsers and KiCad serializers,
-   footprint first, then symbol, credits and optional model handling.
+   footprint first, then symbol and source credits (2D only).
 3. Expose Typer fetch/convert commands, file input, force, delay, dry-run and
    verbose flags. Cached convert performs no network requests.
 4. Validate fixture geometry, coordinates, directions, credits, output syntax,
@@ -260,3 +268,27 @@ positions and physical dimensions. A native SVG regression includes an origin
 marker to catch origin-to-drawing view inflation; ordinary SVG auto-cropping
 alone had concealed the offset. The original four fixtures retain exactly the
 same pin positions, lengths and pad dimensions as the first working commit.
+
+## Audit reference checks
+
+The mapping reference is KiCad's own EasyEDA Standard importer at commit
+`ce707d0a6c8736cbf4689560be4fee3d6a7f7f5e` (9.0 branch):
+
+- [PCB LayerToKi and pad/text import](https://github.com/KiCad/kicad-source-mirror/blob/ce707d0a6c8736cbf4689560be4fee3d6a7f7f5e/pcbnew/pcb_io/easyeda/pcb_io_easyeda_parser.cpp).
+- [Symbol ConvertElecType](https://github.com/KiCad/kicad-source-mirror/blob/ce707d0a6c8736cbf4689560be4fee3d6a7f7f5e/eeschema/sch_io/easyeda/sch_easyeda_parser.cpp).
+
+Pin types are 0 unspecified, 1 input, 2 output, 3 bidirectional and **4 passive**.
+Empty/undefined stays unspecified; other values warn and become unspecified.
+Type 4 formerly became power_in, which was incorrect for ERC.
+The fixture layer tables identify 12 as Document and 13/14 as Assembly;
+KiCad maps 12 to Dwgs.User, not F.Fab. Existing 1–8 and 10 mappings agree.
+Layer 11 is special for through-hole pads, not a generic drawing-layer alias.
+Unknown drawing layers never fall back to arbitrary fabrication layers.
+
+Official EasyEDA documentation URLs consulted:
+[Standard format](https://docs.easyeda.com/en/DocumentFormat/EasyEDA-Format-Standard/index.html)
+and [PCB layers](https://docs.easyeda.com/en/PCB/Layers/index.html).
+The audit environment denied access to that documentation host. Corrections
+above rely on KiCad's authoritative importer plus the embedded real source
+layer tables; no rules were guessed from the inaccessible pages. No importer
+implementation code was copied.
