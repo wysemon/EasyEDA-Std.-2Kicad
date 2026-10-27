@@ -63,8 +63,13 @@ def parse_pin(raw, coords):
         raise ValueError('zero-length pin')
     angle = round(math.degrees(math.atan2(dy, dx))) % 360
     name, number = sections[3][4], sections[4][4] or main[3]
-    electrical = {'0': 'unspecified', '1': 'input', '2': 'output',
-                  '3': 'bidirectional', '4': 'power_in'}.get(main[2], 'unspecified')
+    if not number:
+        raise ValueError('pin number is empty')
+    electrical_types = {'0': 'unspecified', '1': 'input', '2': 'output',
+                        '3': 'bidirectional', '4': 'passive'}
+    electrical = electrical_types.get(main[2], 'unspecified')
+    if main[2] not in (*electrical_types, '', 'undefined'):
+        log.warning('Unknown electrical type %r for pin %s; using unspecified.', main[2], number)
     inverted = len(sections) > 5 and sections[5][0] == '1'
     clock = len(sections) > 6 and sections[6][0] == '1'
     style = 'inverted_clock' if inverted and clock else 'inverted' if inverted else 'clock' if clock else 'line'
@@ -168,15 +173,9 @@ def symbol_label_position(data, coords, graphics, pins, below=False):
 
 
 def unit_one(data):
-    if 'subparts' not in data:
+    if not data.get('subparts'):
         return data
-    log.warning('Multi-unit symbol: converting unit 1 only; subparts format is unverified')
-    parts = data['subparts']
-    if data.get('shape'):
-        return data
-    if isinstance(parts, list) and parts and isinstance(parts[0], dict) and 'shape' in parts[0]:
-        return {**data, 'shape': parts[0]['shape']}
-    raise ValueError('unrecognized subparts layout; cannot locate unit 1')
+    raise ValueError('Multi-unit symbols (nonempty subparts) are not supported; refusing a partial unit-1 library. Use a verified single-unit source.')
 
 
 

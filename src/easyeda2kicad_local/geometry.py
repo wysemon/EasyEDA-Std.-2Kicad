@@ -9,6 +9,14 @@ def numbers(text):
     return [float(n) for n in re.findall(NUMBER, text)]
 
 
+def point_pairs(text, minimum=2):
+    values = numbers(text)
+    if (re.sub(NUMBER, '', text).strip(' \t\r\n,') or len(values) < 2 * minimum
+            or len(values) % 2 or not all(math.isfinite(v) for v in values)):
+        raise ValueError('invalid point-pair geometry')
+    return list(zip(values[::2], values[1::2]))
+
+
 def arc_points(start, values):
     rx, ry, rotation, large, sweep, x, y = values
     rx, ry = abs(rx), abs(ry)

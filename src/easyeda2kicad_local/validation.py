@@ -12,15 +12,17 @@ log = logging.getLogger(__name__)
 def validate_libraries(folder: Path, name: str):
     executable = shutil.which('kicad-cli')
     if executable is None:
-        print('Validation skipped: kicad-cli is not on PATH.')
-        return True
+        print('Validation unavailable: install KiCad 8/9 and add kicad-cli to PATH, then retry --validate.')
+        return False
     passed = True
     with tempfile.TemporaryDirectory(prefix='ee2kicad-validate-') as temporary:
         work = Path(temporary)
         symbol = work / f'{name}.kicad_sym'
         pretty = work / f'{name}.pretty'
         shutil.copy2(folder / symbol.name, symbol)
-        shutil.copytree(folder / pretty.name, pretty)
+        pretty.mkdir()
+        for footprint in (folder / pretty.name).glob('*.kicad_mod'):
+            shutil.copy2(footprint, pretty / footprint.name)
         # Keep KiCad's settings/cache writes temporary as well as its upgrades.
         env = dict(os.environ)
         for key in ('XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME'):
@@ -35,8 +37,12 @@ def validate_libraries(folder: Path, name: str):
                                         encoding='utf-8', errors='replace', timeout=60)
                 ok = result.returncode == 0
                 log.debug('KiCad %s validation output: %s %s', kind, result.stdout, result.stderr)
-            except (OSError, subprocess.TimeoutExpired):
+            except subprocess.TimeoutExpired:
                 ok = False
+                log.error('KiCad %s validation timed out after 60 seconds.', kind)
+            except OSError as e:
+                ok = False
+                log.error('Cannot run KiCad %s validation: %s; check the KiCad installation.', kind, e)
                 log.debug('KiCad validation could not run', exc_info=True)
             print(f'Validation {kind}: {"PASS" if ok else "FAIL"} ({name})')
             if not ok:

@@ -54,8 +54,18 @@ Do not discard either speaker connection. TP4056 has four pins. Both packages ha
 
 1/2 = F.Cu/B.Cu; 3/4 = F.SilkS/B.SilkS; 5/6 = F.Paste/B.Paste;
 7/8 = F.Mask/B.Mask; 10 = Edge.Cuts; 11 = through-hole *.Cu + *.Mask;
-12/13 = F.Fab; 14 = B.Fab; 99/100/101 = F.Fab. Unmapped layers warn.
-Generate F.CrtYd from declared geometry BBox plus 0.25 mm (include pad extents).
+12 = Dwgs.User (Document); 13/14 = F.Fab/B.Fab (Top/Bottom Assembly);
+99/100/101 = User.3/User.4/User.5 (component/lead/marking shapes).
+These mappings match KiCad 9's Standard importer and the layer names embedded
+in our real fixtures. Unmapped drawing layers warn; unknown pad layers fail.
+We do not map model layer 19 or add inner-copper support in this audit.
+Generate F.CrtYd from exported pads, holes and non-text physical outlines,
+with 0.25 mm margin rounded outwards to a 0.05 mm grid. Do not use source BBox
+for courtyards: it can be stale or include remote documentation/text. Include
+copper/paste/mask, silkscreen, assembly, Edge.Cuts and component shape User.3;
+exclude documentation, lead/marking user layers and text. Rotated pad extents
+are conservative; custom pads use actual transformed vertices. Arc bounds
+include only extrema on the arc, plus stroke width, not the full circle.
 KiCad 8/9 modern S-expressions use start/mid/end arcs. SVG circular arcs are
 converted through the SVG endpoint-to-center algorithm; elliptical arcs are
 sampled as polylines and reported. No third-party conversion source is copied.
@@ -65,17 +75,21 @@ sampled as polylines and reported. No third-party conversion source is copied.
 In the original MAX98357A/TP4056 fixtures, only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur.
 Other documented records are implemented conservatively and must be checked
 against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE, custom polygon pads,
-slots, multilayer SMD, electrical-type mappings, pin clock/inversion, subparts.
-Unsupported paths or records warn with their raw line and are skipped.
-Subparts are unverified: warn and use unit 1 only when a recognizable shape
-container is supplied; do not guess unrecognized layouts.
+slots, multilayer SMD, pin clock/inversion, subparts.
+Unsupported optional drawings warn with UUID and raw line and are skipped.
+Malformed P/PAD/VIA/HOLE records and supported copper geometry fail the whole
+component before publication. Empty pin/pad collections fail too. Duplicate
+pin numbers and unmatched physical pads remain allowed and are retained.
+Nonempty `subparts` is an explicit unsupported multi-unit error, even alongside
+top-level shapes; empty/missing subparts keeps single-unit behavior. There is
+no unit-1 compatibility option because no verified complete unit layout exists.
 
 ## Implementation and validation plan
 
 1. Build a sequential httpx fetcher with pacing, bounded retries, cross-item
    throttling detection, byte-preserving cache and append-only status log.
 2. Implement independent tolerant geometry parsers and KiCad serializers,
-   footprint first, then symbol, credits and optional model handling.
+   footprint first, then symbol and source credits (2D only).
 3. Expose Typer fetch/convert commands, file input, force, delay, dry-run and
    verbose flags. Cached convert performs no network requests.
 4. Validate fixture geometry, coordinates, directions, credits, output syntax,
@@ -145,7 +159,9 @@ MAX98357A symbol sizes before/after the cap (mm): SPKR 3.175 (missing size,
 9 pt fallback) → 1.905; I2S MONO AMP 2.293056 (6.5 pt) → 1.905;
 MAX98357A 2.822222 (8 pt) → 1.905.
 
-**EasyEDA pad/text rotation sign and slot orientation remain unverified.**
+**Historical status: pad/text rotation sign and slot orientation remain unverified
+in the original two fixtures alone.** The audit below adds real pad/slot evidence;
+full text layout and genuine rear/custom source examples remain limited.
 The old fixture has circular round pads at 180 degrees. The newer fixture has
 square pads at 0/90 degrees. These symmetric shapes cannot establish rotation
 sign. Both fixtures have holeRadius 1.968 and holeLength 3.937 drawing units:
@@ -154,10 +170,9 @@ slot. The synthesized slot/rotation tests validate serialization only; they do
 not verify EasyEDA's physical drilling convention. The earlier stock KiCad
 checks establish KiCad angle units, not EasyEDA's pad/text rotation sign.
 
-A public Standard component link/UUID or raw component JSON with an asymmetric
-rotated pad and a genuine oval drill slot is requested before changing signs
-or claiming orientation verification. A source screenshot/dimensioned drawing
-would also allow checking the output against the intended drill axis.
+The audit obtained trustworthy examples from KiCad's stored EasyEDA Standard
+board. Additional genuine custom-polygon and rear-mounted samples, with a
+source drawing, are still useful for checking those remaining cases.
 
 SVG arcs now read flags as individual characters, so compact `01`, `10`, and
 flags followed immediately by an endpoint number are supported. Client base
@@ -165,8 +180,13 @@ cooldown must be at least 1 second (default 4 + 0–2 seconds jitter remains).
 Retry-After seconds/dates are capped at 300 seconds with a one-line warning.
 Two consecutive 403/429 responses still stop the entire run.
 
-A cached item is complete only with a `.kicad_sym` file and a
-`.pretty/*.kicad_mod` file. Incomplete libraries are rebuilt from raw cache
+A cached item is complete only with usable `.kicad_sym` and
+`.pretty/*.kicad_mod` files containing pins/pads and no model references.
+New output also has `.ee2kicad-complete.json` with per-file SHA-256 hashes.
+A pending publish journal always makes output incomplete. Legacy 2D output
+without a manifest is accepted after structural and cached source-count checks.
+Legacy unit-1 outputs with nonempty subparts, or outputs missing source pins,
+pads, vias or holes, cannot silently pass this check. Incomplete libraries are rebuilt from raw cache
 without requests, including no footprint fallback. Missing
 fallback cache is an offline error; explicit `--force` allows retrieval.
 Per-item exceptions are counted/logged and processing continues, except StopRun.
@@ -204,8 +224,32 @@ without fetching or attaching models. Original raw responses are preserved.
 
 All generated libraries, CREDITS and raw/fallback cache files use same-directory
 temporary files followed by `os.replace()`. Interrupted writes leave the old
-complete file (or no file), and normal failures remove temporary files. This is
-per-file atomic replacement, not a transaction across all output files.
+complete file (or no file), and normal failures remove temporary files. Conversions now stage every artifact before publishing. Explicit validation runs
+on disposable copies before publication and fails if KiCad is unavailable.
+Publication backs up replaced files, records `.ee2kicad-pending.json`, replaces
+artifacts and installs completion metadata last. Normal failures roll back;
+the next non-dry run recovers a journal left by process interruption. Recovery
+preserves caches and unrelated files. This is recoverable multi-file publication,
+not an atomic directory swap or a guarantee against filesystem/power failure.
+A hard kill before journaling can leave unused hidden staging/backup directories.
+After confirming no converter is running, these can be inspected and cleaned
+up manually; do not remove recovery material while a pending journal exists.
+Do not run concurrent conversions into the same component folder.
+
+Legacy converter-owned footprints with actual `(model ...)` nodes are regenerated
+from cached source. Pre-UUID library names are regenerated in place as aliases when their paired
+symbol UUID verifies ownership; unassociated libraries are left untouched with
+a manual-cleanup warning;
+current UUID-suffixed libraries are also written. Source SVGNODE metadata alone
+does not trigger migration. Existing STEP/WRL files are never removed. Missing
+footprint cache fails offline. Changed attribution, changed legacy libraries and manifest-detected edits
+are preserved in hash-suffixed previous files. Unrelated library files are not
+overwritten.
+
+Manifest-owned damaged libraries can be rebuilt without decoding their old
+contents. Invalid UTF-8 or UTF-16 files are preserved byte-for-byte in previous
+files before replacement. Unreadable libraries without matching ownership
+metadata are refused, so an unrelated user file is never inferred to be ours.
 
 CI runs the offline suite on Ubuntu and Windows, on Python 3.11 and 3.12.
 Only dependency installation uses the network; component HTTP requests
@@ -242,3 +286,93 @@ positions and physical dimensions. A native SVG regression includes an origin
 marker to catch origin-to-drawing view inflation; ordinary SVG auto-cropping
 alone had concealed the offset. The original four fixtures retain exactly the
 same pin positions, lengths and pad dimensions as the first working commit.
+
+## Audit reference checks
+
+The mapping reference is KiCad's own EasyEDA Standard importer at commit
+`ce707d0a6c8736cbf4689560be4fee3d6a7f7f5e` (9.0 branch):
+
+- [PCB LayerToKi and pad/text import](https://github.com/KiCad/kicad-source-mirror/blob/ce707d0a6c8736cbf4689560be4fee3d6a7f7f5e/pcbnew/pcb_io/easyeda/pcb_io_easyeda_parser.cpp).
+- [Symbol ConvertElecType](https://github.com/KiCad/kicad-source-mirror/blob/ce707d0a6c8736cbf4689560be4fee3d6a7f7f5e/eeschema/sch_io/easyeda/sch_easyeda_parser.cpp).
+
+Pin types are 0 unspecified, 1 input, 2 output, 3 bidirectional and **4 passive**.
+Empty/undefined stays unspecified; other values warn and become unspecified.
+Type 4 formerly became power_in, which was incorrect for ERC.
+The fixture layer tables identify 12 as Document and 13/14 as Assembly;
+KiCad maps 12 to Dwgs.User, not F.Fab. Existing 1–8 and 10 mappings agree.
+Layer 11 is special for through-hole pads, not a generic drawing-layer alias.
+Unknown drawing layers never fall back to arbitrary fabrication layers.
+
+Official EasyEDA documentation URLs consulted:
+[Standard format](https://docs.easyeda.com/en/DocumentFormat/EasyEDA-Format-Standard/index.html)
+and [PCB layers](https://docs.easyeda.com/en/PCB/Layers/index.html).
+The audit environment denied access to that documentation host. Corrections
+above rely on KiCad's authoritative importer plus the embedded real source
+layer tables; no rules were guessed from the inaccessible pages. No importer
+implementation code was copied.
+
+## Verified pad/slot evidence and courtyard bounds
+
+`tests/fixtures/geometry/real_pad_examples.json` contains unmodified excerpts
+from KiCad's ESP32-PICO-D4 smart-watch Standard test board at the audit reference
+commit above. Its provenance and separate CC-BY-NC-SA 3.0 license are included.
+No component API requests are needed to run these tests.
+
+The switch has rectangular 4.3307 × 7.4803-unit pads at **124 degrees**.
+Their source polygon corners agree with KiCad's native EasyEDA import and our
+native-loaded output. The positive serialized pad angle was correct and stays.
+KiCad rotates local pad coordinates counterclockwise in a Y-down frame, so the
+inverse transform for source polygon vertices uses **positive** math rotation.
+The former negative inverse rotated custom vertices a second time. A clearly
+labeled derived POLYGON calibration, retaining these real source corners,
+now agrees with both native importers. This does not establish every genuine
+custom-pad or offset-anchor convention.
+
+The USB-C pad 19 has width 4.3307, height 9.4488, rotation 270, hole radius
+1.2795 and holeLength 7.8741 units. Its hole-center points are horizontal and
+5.3151 units apart (length minus diameter). Native KiCad imports local drill
+sizes **0.65 × 2.0 mm**, rotating the long local Y axis into world X. We now put
+holeLength on the longer local pad axis, matching the importer; previously it
+always went on X and the hole turned 90 degrees. The 0.01 mm threshold still
+suppresses rounding-only slots in all six original fixtures.
+
+Native geometry tests compare pad position, angle, layers, polygon outlines,
+drill dimensions and world hole bounding boxes. Rear-side calibration changes
+an SMD source layer to B.Cu and agrees with native KiCad; a genuine asymmetric
+rear-mounted component and offset/independently angled slots remain unverified.
+The real rotated TEXT retains its source angle/size; the angle sign matches
+KiCad's importer implementation, but baseline/justification/mirroring and full
+visual text layout are not claimed to match. No sign or size change was made
+to footprint text in this audit.
+
+Courtyards no longer miss extended silkscreen/body outlines or custom polygons,
+and remote text/stale BBox no longer inflates them. They are conservative 2D
+bounds, not an IPC compliance or manufacturability guarantee. They remain
+F.CrtYd; rear-side courtyard policy needs a genuine source comparison.
+
+## Native integration and validation status
+
+The fast Python 3.11/3.12 Ubuntu/Windows matrix is unchanged. A separate native
+job installs KiCad from the team's `ppa:kicad/kicad-8.0-releases` repository on
+Ubuntu 24.04. The default Ubuntu repository supplies **7.0.11**, not KiCad 8;
+using it caused all 18 native tests to fail. The corrected job checks that both
+kicad-cli and pcbnew report major version 8 before running the tests.
+`EE2KICAD_REQUIRE_KICAD=1` and `EE2KICAD_REQUIRE_PCBNEW=1` prevent silently
+skipping the required tools. No EasyEDA network requests run in CI.
+
+All 18 native cases pass on **8.0.9** in an isolated Ubuntu 24.04 environment,
+and on **9.0.2** on the development host. The geometry helper handles the
+versions' different GetEffectivePolygon APIs; no geometry assertions were
+relaxed to support 8. See `PR_FOLLOWUP.md` for reproduction and test results.
+
+Explicit --validate now returns failure when KiCad is absent, fails or times
+out. Symbol and footprint results are separate, and both are attempted on
+copies. Only footprint library files are copied, not unrelated model/user files.
+A 60-second timeout produces a clear diagnostic. Original files stay unchanged,
+and no failed validation can publish a new completion record.
+
+Redirects are disabled per request even for a supplied HTTP client configured
+to follow them. Invalid NaN Retry-After values retain the normal backoff;
+infinite/excessive values still cap at 300 seconds. Pacing, jitter and the
+consecutive access-denial stop rule remain unchanged. No live component fetch
+was used in this audit; reference reads came from public KiCad sources.

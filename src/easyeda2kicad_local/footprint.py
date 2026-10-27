@@ -2,13 +2,14 @@
 import math
 from dataclasses import dataclass
 
-from .geometry import numbers
+from .bounds import courtyard
+from .geometry import point_pairs
 from .shared import UNIT, effects, f, num, q, stroke, svg_graphics
 
 LAYERS = {'1': 'F.Cu', '2': 'B.Cu', '3': 'F.SilkS', '4': 'B.SilkS',
           '5': 'F.Paste', '6': 'B.Paste', '7': 'F.Mask', '8': 'B.Mask',
-          '10': 'Edge.Cuts', '12': 'F.Fab', '13': 'F.Fab', '14': 'B.Fab',
-          '99': 'F.Fab', '100': 'F.Fab', '101': 'F.Fab'}
+          '10': 'Edge.Cuts', '12': 'Dwgs.User', '13': 'F.Fab', '14': 'B.Fab',
+          '99': 'User.3', '100': 'User.4', '101': 'User.5'}
 
 
 def layer(value):
@@ -38,7 +39,9 @@ class Pad:
         if self.drill:
             # Ignore the one-thousandth drawing-unit rounding noise in the fixture.
             if self.hole_length > self.drill + .01:
-                drill = f'(drill oval {f(self.hole_length)} {f(self.drill)})'
+                dx, dy = ((self.drill, self.hole_length) if self.width < self.height
+                          else (self.hole_length, self.drill))
+                drill = f'(drill oval {f(dx)} {f(dy)})'
             else:
                 drill = f'(drill {f(self.drill)})'
         shape = 'custom' if self.polygon else self.shape
@@ -65,6 +68,8 @@ def parse_pad(raw, coords):
     kind = ('thru_hole' if t[15] == 'Y' else 'np_thru_hole') if through else 'smd'
     if through and radius <= 0:
         raise ValueError('through-hole pad without drill')
+    if through and num(t[13]) < 0:
+        raise ValueError('negative drill-slot length')
     if through:
         layers = '"*.Cu" "*.Mask"'
     elif t[6] in ('1', '2'):
@@ -74,12 +79,11 @@ def parse_pad(raw, coords):
         raise ValueError(f'unsupported pad layer {t[6]}')
     polygon = []
     if shape == 'custom':
-        ns = numbers(t[10])
-        if len(ns) < 6 or len(ns) % 2:
-            raise ValueError('invalid polygon pad')
-        for px, py in zip(ns[::2], ns[1::2]):
+        for px, py in point_pairs(t[10], minimum=3):
             px, py = coords.point(px, py)
-            a = math.radians(-angle)
+            # KiCad applies a positive pad angle counterclockwise in Y-down
+            # coordinates. Undo that world transform to obtain local vertices.
+            a = math.radians(angle)
             polygon.append(((px - x) * math.cos(a) - (py - y) * math.sin(a),
                             (px - x) * math.sin(a) + (py - y) * math.cos(a)))
     return Pad(t[8], x, y, w, h, 2 * radius if through else 0,
@@ -94,8 +98,7 @@ def footprint_graphic(raw, coords):
         ln, width = layer(t[2]), num(t[1], 1) * UNIT
         if kind == 'ARC':
             return svg_graphics(t[4], coords, width, False, ln)
-        ns = numbers(t[4])
-        pts = list(zip(ns[::2], ns[1::2]))
+        pts = point_pairs(t[4])
         return [f'(fp_line (start {coords.xy(*a)}) (end {coords.xy(*b)}) {stroke(width)} (layer {q(ln)}))'
                 for a, b in zip(pts, pts[1:])]
     if kind == 'SOLIDREGION':
@@ -118,10 +121,14 @@ def footprint_graphic(raw, coords):
                 f'{stroke(.254)} (fill none) (layer {q(layer(t[5]))}))']
     if kind == 'HOLE':
         diameter = 2 * num(t[3]) * UNIT
+        if diameter <= 0:
+            raise ValueError('hole diameter must be positive')
         return [f'(pad "" np_thru_hole circle (at {coords.xy(t[1], t[2])}) '
                 f'(size {f(diameter)} {f(diameter)}) (drill {f(diameter)}) (layers "*.Cu" "*.Mask"))']
     if kind == 'VIA':
         diameter, drill = num(t[3]) * UNIT, 2 * num(t[5]) * UNIT
+        if min(diameter, drill) <= 0:
+            raise ValueError('via size and drill must be positive')
         return [f'(pad "" thru_hole circle (at {coords.xy(t[1], t[2])}) (size {f(diameter)} {f(diameter)}) '
                 f'(drill {f(drill)}) (layers "*.Cu" "*.Mask"))']
     if kind == 'SVGNODE':
@@ -131,23 +138,12 @@ def footprint_graphic(raw, coords):
 
 
 def render_footprint(name, fp, fc, pads, fg):
-    box = fp.get('BBox') or {}
-    extents = []
-    if box:
-        extents.extend([fc.point(box['x'], box['y']),
-                        fc.point(num(box['x']) + num(box['width']), num(box['y']) + num(box['height']))])
-    for pad in pads:
-        a = math.radians(pad.angle)
-        wx = (abs(pad.width * math.cos(a)) + abs(pad.height * math.sin(a))) / 2
-        hy = (abs(pad.width * math.sin(a)) + abs(pad.height * math.cos(a))) / 2
-        extents.extend([(pad.x - wx, pad.y - hy), (pad.x + wx, pad.y + hy)])
-    minx, maxx = min(x for x, _ in extents) - .25, max(x for x, _ in extents) + .25
-    miny, maxy = min(y for _, y in extents) - .25, max(y for _, y in extents) + .25
-    fg.append(f'(fp_rect (start {f(minx)} {f(miny)}) (end {f(maxx)} {f(maxy)}) {stroke(.05)} (fill none) (layer "F.CrtYd"))')
+    minx, miny, maxx, maxy = courtyard(pads, fg)
+    courtyard_graphic = f'(fp_rect (start {f(minx)} {f(miny)}) (end {f(maxx)} {f(maxy)}) {stroke(.05)} (fill none) (layer "F.CrtYd"))'
     attrs = 'through_hole' if any(p.kind != 'smd' for p in pads) else 'smd'
     footprint = (f'(footprint {q(name)} (version 20240108) (generator "easyeda2kicad-local") '
                  f'(layer "F.Cu") (attr {attrs})\n'
                  f'(property "Reference" "REF**" (at 0 {f(miny - 1)} 0) (layer "F.SilkS") {effects()})\n'
                  f'(property "Value" {q(name)} (at 0 {f(maxy + 1)} 0) (layer "F.Fab") {effects(hidden=True)})\n'
-                 + '\n'.join(p.render() for p in pads) + '\n' + '\n'.join(fg) + '\n)\n')
+                 + '\n'.join(p.render() for p in pads) + '\n' + '\n'.join([*fg, courtyard_graphic]) + '\n)\n')
     return footprint

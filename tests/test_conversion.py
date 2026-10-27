@@ -55,23 +55,20 @@ def test_golden_geometry(response, caplog):
 def test_tolerant_unknown_and_missing_pad_warning(response, caplog):
     changed = copy.deepcopy(response)
     changed['result']['dataStr']['shape'].append('FUTURE~whatever')
-    changed['result']['packageDetail']['dataStr']['shape'].append('PAD~invalid')
     changed['result']['packageDetail']['dataStr']['shape'] = [
         s for s in changed['result']['packageDetail']['dataStr']['shape']
         if not (s.startswith('PAD~') and len(s.split('~')) > 8 and s.split('~')[8] == '1')]
     c = convert_response(changed)
     assert len(c.pads) >= 3
-    assert 'FUTURE~whatever' in caplog.text and 'PAD~invalid' in caplog.text
+    assert 'FUTURE~whatever' in caplog.text
     assert 'Symbol pin numbers missing from footprint: 1' in caplog.text
 
 
 def test_string_documents_and_multiunit(response, caplog):
     changed = copy.deepcopy(response)
-    changed['result']['dataStr']['subparts'] = [{}]
     changed['result']['dataStr'] = json.dumps(changed['result']['dataStr'])
     changed['result']['packageDetail']['dataStr'] = json.dumps(changed['result']['packageDetail']['dataStr'])
     assert convert_response(changed).pads
-    assert 'unit 1 only' in caplog.text
 
 
 def test_slot_rotation_polygon_and_smd(response):
@@ -114,6 +111,7 @@ def test_credits_official(response):
     assert 'JLCEDA/EasyEDA Official Library' in convert_response(response).credits
 
 
+@pytest.mark.kicad
 def test_kicad_imports(response, tmp_path):
     executable = shutil.which('kicad-cli')
     if not executable:

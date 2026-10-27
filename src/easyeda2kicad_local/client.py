@@ -64,7 +64,7 @@ class EasyEDAClient:
         for attempt in range(3):
             self.sleep(max(0., self.next_request - self.clock()))
             try:
-                response = self.http.get(url, params=params, headers=HEADERS)
+                response = self.http.get(url, params=params, headers=HEADERS, follow_redirects=False)
             except httpx.RequestError as e:
                 self.next_request = self.clock() + self.delay + self.jitter()
                 raise FetchError(f'Network request failed ({type(e).__name__}); check your internet connection/proxy and retry.') from e
@@ -82,7 +82,10 @@ class EasyEDAClient:
                 retry = response.headers.get('Retry-After')
                 if retry:
                     try:
-                        wait = max(0., float(retry))
+                        seconds = float(retry)
+                        if math.isnan(seconds):
+                            raise ValueError('invalid Retry-After')
+                        wait = max(0., seconds)
                     except ValueError:
                         try:
                             date = parsedate_to_datetime(retry)

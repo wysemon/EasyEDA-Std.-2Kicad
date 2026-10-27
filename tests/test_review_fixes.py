@@ -58,10 +58,10 @@ def test_attribute_error_fails_only_one_item(tmp_path, monkeypatch, capsys):
     for uuid in (OLD, NEW):
         install_cache(tmp_path, json.loads((FIXTURES / f'{uuid}.json').read_bytes()))
     original = workflow.write_conversion
-    def malformed(data, *args):
+    def malformed(data, *args, **kwargs):
         if data['result']['uuid'] == OLD:
             raise AttributeError('injected malformed component')
-        return original(data, *args)
+        return original(data, *args, **kwargs)
     monkeypatch.setattr(workflow, 'write_conversion', malformed)
     assert workflow.run_items([OLD, NEW], tmp_path) == 1
     assert '1 succeeded, 1 failed, 0 skipped' in capsys.readouterr().out
