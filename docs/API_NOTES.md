@@ -215,3 +215,8 @@ All generated libraries, CREDITS and raw/fallback cache files use same-directory
 temporary files followed by `os.replace()`. Interrupted writes leave the old
 complete file (or no file), and normal failures remove temporary files. This is
 per-file atomic replacement, not a transaction across all output files.
+
+CI runs the offline suite on Ubuntu and Windows, on Python 3.11 and 3.12.
+Only dependency installation uses the network; component/model HTTP requests
+are blocked by test fixtures. Native launcher tests run on their own platform.
+Live smoke tests are explicitly excluded and disabled in CI.
