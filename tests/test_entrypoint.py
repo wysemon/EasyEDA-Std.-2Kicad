@@ -1,0 +1,144 @@
+import io
+import sys
+
+import pytest
+
+from easyeda2kicad_local import cli
+from test_workflow import install_cache
+from conftest import NEW, OLD
+
+
+def invoke_main(monkeypatch, args, stdin=''):
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(stdin))
+    monkeypatch.setattr(sys, 'argv', ['ee2kicad', *args])
+    try:
+        cli.main()
+    except SystemExit as e:
+        return e.code
+    return 0
+
+
+def test_no_args_reads_multiple_links(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    calls = []
+    monkeypatch.setattr(cli, 'run_items', lambda items, root, **kwargs: calls.append(items) or 0)
+    assert invoke_main(monkeypatch, [], f'https://www.easyeda.com/component/{OLD}#x\n{NEW}\n\n') == 0
+    assert calls == [[OLD, NEW]]
+
+
+@pytest.mark.parametrize('answer', ['', 'y', 'Y', 'yes'])
+def test_default_links_file(monkeypatch, tmp_path, answer):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / 'links.txt').write_text('\ufeff' + NEW, encoding='utf-8')
+    calls = []
+    monkeypatch.setattr(cli, 'run_items', lambda items, root, **kwargs: calls.append(items) or 0)
+    assert invoke_main(monkeypatch, [], answer + '\n') == 0
+    assert calls == [[NEW]]
+
+
+def test_declining_file_and_eof(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / 'links.txt').write_text('invalid')
+    calls = []
+    monkeypatch.setattr(cli, 'run_items', lambda items, root, **kwargs: calls.append(items) or 0)
+    assert invoke_main(monkeypatch, [], 'n\n' + NEW) == 0
+    assert calls == [[NEW]]
+
+
+def test_empty_interactive_exits_without_fetch(monkeypatch, tmp_path, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, 'run_items', lambda *a, **kw: pytest.fail('must not fetch'))
+    assert invoke_main(monkeypatch, [], '\n') == 0
+    assert 'nothing to do' in capsys.readouterr().out
+    assert invoke_main(monkeypatch, [], '') == 0
+
+
+@pytest.mark.parametrize('args,cached', [([NEW], False), (['fetch', NEW], False), (['convert', NEW], True)])
+def test_alias_entrypoint_dispatch(monkeypatch, args, cached):
+    calls = []
+    monkeypatch.setattr(cli, 'run_items', lambda items, root, **kw: calls.append((items, kw)) or 0)
+    assert invoke_main(monkeypatch, args) == 0
+    assert calls[0][0] == [NEW]
+    assert calls[0][1].get('cached_only', False) is cached
+    if not cached:
+        assert calls[0][1]['delay'] == 4.
+
+
+def test_alias_declared():
+    from pathlib import Path
+    import tomllib
+    config = tomllib.loads((Path(__file__).parents[1] / 'pyproject.toml').read_text())
+    assert config['project']['scripts']['ee2kicad'] == 'easyeda2kicad_local.cli:main'
+
+
+def test_friendly_bad_link(monkeypatch, capsys):
+    assert invoke_main(monkeypatch, ['https://evil.test/component/' + NEW]) == 1
+    error = capsys.readouterr().err
+    assert len(error.splitlines()) == 1
+    assert 'paste a public EasyEDA' in error and 'Traceback' not in error
+
+
+@pytest.mark.parametrize('verbose', [False, True])
+def test_friendly_network_failure(monkeypatch, tmp_path, capsys, verbose):
+    import httpx
+
+    def fail(self, *a, **kwargs):
+        raise httpx.ConnectError('offline')
+
+    monkeypatch.setattr('httpx.Client.get', fail)
+    args = [NEW, '-o', str(tmp_path)] + (['--verbose'] if verbose else [])
+    assert invoke_main(monkeypatch, args) == 1
+    error = capsys.readouterr().err
+    assert 'check your internet connection' in error
+    assert ('Traceback' in error) is verbose
+    if not verbose:
+        assert len(error.splitlines()) == 1
+
+
+def test_summary_and_absolute_library_paths(response, monkeypatch, tmp_path, capsys):
+    output = tmp_path / 'output'
+    output.mkdir()
+    folder, _ = install_cache(output, response)
+    uuid = response['result']['uuid']
+    assert invoke_main(monkeypatch, ['convert', uuid, '-o', str(output)]) == 0
+    text = capsys.readouterr().out
+    assert '1 succeeded, 0 failed, 0 skipped' in text
+    assert f'Output: {output.resolve()}' in text
+    assert f'add {next(folder.glob("*.kicad_sym")).resolve()} in Symbol Libraries' in text
+    assert f'add {next(folder.glob("*.pretty")).resolve()} in Footprint Libraries' in text
+    assert invoke_main(monkeypatch, [uuid, '-o', str(output)]) == 0
+    assert '0 succeeded, 0 failed, 1 skipped' in capsys.readouterr().out
+
+
+def test_403_stops_run_with_friendly_fix(monkeypatch, tmp_path, capsys):
+    from test_client import make_client
+
+    client, clock, calls = make_client([403, 429])
+    monkeypatch.setattr('easyeda2kicad_local.workflow.EasyEDAClient', lambda delay: client)
+    assert invoke_main(monkeypatch, [NEW, OLD, '-o', str(tmp_path)]) == 1
+    captured = capsys.readouterr()
+    assert 'Wait before retrying' in captured.err
+    assert 'Traceback' not in captured.err
+    assert '0 succeeded, 1 failed, 0 skipped' in captured.out
+    assert 'Not processed: 1' in captured.out
+    assert len(calls) == 2 and clock.sleeps == [0., 30.]
+
+
+def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
+    import json
+    import os
+    import subprocess
+
+    output = tmp_path / '输出'
+    output.mkdir()
+    folder, _ = install_cache(output, response)
+    response['result']['title'] = '你好 électricité'
+    response['result']['owner']['nickname'] = '作者'
+    (folder / 'raw.json').write_text(json.dumps(response, ensure_ascii=False), encoding='utf-8')
+    result = subprocess.run([sys.executable, '-m', 'easyeda2kicad_local', 'convert',
+                             response['result']['uuid'], '-o', str(output)],
+                            env=dict(os.environ, PYTHONIOENCODING='ascii', PYTHONUTF8='0'),
+                            capture_output=True, encoding='utf-8', timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert '输出' in result.stdout and '1 succeeded' in result.stdout
+    assert '作者' in (folder / 'CREDITS.txt').read_text(encoding='utf-8')
