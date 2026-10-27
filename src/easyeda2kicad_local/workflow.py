@@ -89,11 +89,11 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
             print(f'add {symbol} in Symbol Libraries')
             print(f'add {pretty} in Footprint Libraries')
 
-    def error_status(uuid, status):
+    def record_status(uuid, status):
         try:
             append_log(root, uuid, status)
         except Exception:
-            log.error('Could not write fetch log; check output folder permissions.', exc_info=verbose)
+            log.warning('Could not write fetch log; check output folder permissions.', exc_info=verbose)
 
     with EasyEDAClient(delay) as client:
         for index, uuid in enumerate(items):
@@ -109,7 +109,7 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                             if not validate_libraries(cached, symbol.stem):
                                 raise ValueError('KiCad validation failed or unavailable; existing libraries were kept')
                     log.info('Skipping cached item %s', uuid)
-                    append_log(root, uuid, 'skipped')
+                    record_status(uuid, 'skipped')
                     remember(cached)
                     skipped += 1
                     continue
@@ -145,12 +145,12 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                     continue
                 remember(folder)
                 log.info('Converted %s: %d pins, %d pads -> %s', uuid, len(converted.pins), len(converted.pads), folder)
-                append_log(root, uuid, 'converted' if cached_only else 'ok')
+                record_status(uuid, 'converted' if cached_only else 'ok')
                 succeeded += 1
             except StopRun as e:
                 log.error('%s', e, exc_info=verbose)
                 if not dry_run:
-                    error_status(uuid, 'stopped')
+                    record_status(uuid, 'stopped')
                 failures += 1
                 summary(len(items) - index - 1)
                 return 1
@@ -158,6 +158,6 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                 failures += 1
                 log.error('%s: %s', uuid, str(e).replace('\n', ' '), exc_info=verbose)
                 if not dry_run:
-                    error_status(uuid, 'error')
+                    record_status(uuid, 'error')
     summary()
     return int(failures > 0)

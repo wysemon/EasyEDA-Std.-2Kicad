@@ -99,3 +99,19 @@ def test_cli_file_and_errors(response, tmp_path):
     assert runner.invoke(app, ['fetch', 'garbage']).exit_code != 0
     assert runner.invoke(app, ['fetch', uuid, '--delay', '-1']).exit_code != 0
     assert runner.invoke(app, ['convert', '0' * 32, '-o', str(tmp_path)]).exit_code != 0
+
+
+def test_log_failure_does_not_mislabel_committed_conversion(response, tmp_path, monkeypatch, capsys, caplog):
+    from easyeda2kicad_local import workflow
+
+    folder, _ = install_cache(tmp_path, response)
+    def fail_log(*args):
+        raise OSError('log is not writable')
+    monkeypatch.setattr(workflow, 'append_log', fail_log)
+    uuid = response['result']['uuid']
+    assert run_items([uuid], tmp_path) == 0
+    assert workflow.libraries_complete(folder)
+    assert '1 succeeded, 0 failed' in capsys.readouterr().out
+    assert 'Could not write fetch log' in caplog.text
+    assert run_items([uuid], tmp_path) == 0
+    assert '0 failed, 1 skipped' in capsys.readouterr().out

@@ -42,3 +42,11 @@ def children(node, kind):
 
 def contains(node, kind):
     return node[0] == kind or any(contains(part, kind) for part in node if isinstance(part, list) and part)
+
+
+def descendants(node, kind):
+    if node and node[0] == kind:
+        yield node
+    for part in node:
+        if isinstance(part, list):
+            yield from descendants(part, kind)

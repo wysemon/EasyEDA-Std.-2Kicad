@@ -8,7 +8,7 @@ from test_symbol_layout import children, one, sexpr
 from test_workflow import install_cache, snapshot
 
 from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.footprint import LAYERS, layer
+from easyeda2kicad_local.footprint import layer
 from easyeda2kicad_local.workflow import libraries_complete, run_items
 
 
@@ -16,6 +16,7 @@ from easyeda2kicad_local.workflow import libraries_complete, run_items
                                     ('footprint', 'PAD~invalid'), ('footprint', 'PAD'),
                                     ('footprint', 'HOLE~0~0~0'), ('footprint', 'VIA~0~0~0~~0'),
                                     ('footprint', 'TRACK~1~1~~invalid'),
+                                    ('footprint', 'TRACK~1~21~~0 0 10 10'),
                                     ('footprint', 'SOLIDREGION~1~~M0 0 Q 2 2 5 5~solid')])
 def test_one_bad_essential_record_fails_whole_component(response, side, raw):
     doc = response['result']['dataStr'] if side == 'symbol' else response['result']['packageDetail']['dataStr']
@@ -110,7 +111,11 @@ def test_empty_subparts_preserve_single_unit_behavior(response, empty):
     assert convert_response(response) == expected
 
 
-@pytest.mark.parametrize('source,expected', sorted(LAYERS.items()))
+@pytest.mark.parametrize('source,expected', [
+    ('1', 'F.Cu'), ('2', 'B.Cu'), ('3', 'F.SilkS'), ('4', 'B.SilkS'),
+    ('5', 'F.Paste'), ('6', 'B.Paste'), ('7', 'F.Mask'), ('8', 'B.Mask'),
+    ('10', 'Edge.Cuts'), ('12', 'Dwgs.User'), ('13', 'F.Fab'), ('14', 'B.Fab'),
+    ('99', 'User.3'), ('100', 'User.4'), ('101', 'User.5')])
 def test_layer_mappings_match_native_importer(response, source, expected):
     data = response['result']['packageDetail']['dataStr']
     data['shape'].append(f'RECT~0~0~10~20~{source}~mapping-test')
@@ -125,6 +130,17 @@ def test_unknown_layer_is_not_arbitrarily_mapped(response, caplog):
     response['result']['packageDetail']['dataStr']['shape'].append('RECT~0~0~10~20~777~unsupported')
     convert_response(response)
     assert 'unsupported layer 777' in caplog.text
+
+
+@pytest.mark.parametrize('field,value', [(1, 'FUTURE_SHAPE'), (4, '0'), (6, '777'), (9, '-1'), (13, '-5')])
+def test_invalid_or_unsupported_pad_cannot_disappear(response, field, value):
+    data = response['result']['packageDetail']['dataStr']
+    raw = next(r for r in data['shape'] if r.startswith('PAD~'))
+    fields = raw.split('~')
+    fields[field] = value
+    data['shape'][data['shape'].index(raw)] = '~'.join(fields)
+    with pytest.raises(ValueError, match='invalid essential footprint PAD'):
+        convert_response(response)
 
 
 @pytest.mark.parametrize('path', sorted(FIXTURES.glob('*.json')), ids=lambda p: p.stem)

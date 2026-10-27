@@ -1,6 +1,7 @@
 """Offline migration, staged publication, rollback and crash-recovery checks."""
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -86,6 +87,46 @@ def test_valid_pre_manifest_2d_output_is_skipped(response, tmp_path, capsys):
     assert '1 skipped' in capsys.readouterr().out
 
 
+def test_pre_manifest_missing_pin_is_not_skipped(response, tmp_path):
+    folder, _ = install_cache(tmp_path, response)
+    c = write_conversion(response, folder)
+    (folder / publication.COMPLETE).unlink()
+    symbol = folder / f'{c.name}.kicad_sym'
+    symbol.write_text(c.symbol.replace(c.pins[0].render(), '', 1), encoding='utf-8')
+    assert not libraries_complete(folder)
+    assert run_items([response['result']['uuid']], tmp_path) == 0
+    assert libraries_complete(folder)
+
+
+def test_pre_manifest_partial_multiunit_is_rejected_without_replacing(response, tmp_path, caplog):
+    folder, _ = install_cache(tmp_path, response)
+    write_conversion(response, folder)
+    (folder / publication.COMPLETE).unlink()
+    response['result']['dataStr']['subparts'] = [{'shape': ['P~invalid']}, {'shape': ['P~other']}]
+    (folder / 'raw.json').write_text(json.dumps(response))
+    before = snapshot(folder)
+    assert not libraries_complete(folder)
+    assert run_items([response['result']['uuid']], tmp_path) == 1
+    assert 'Multi-unit' in caplog.text
+    assert snapshot(folder) == before
+
+
+def test_foreign_converter_owned_library_is_not_migrated(response, tmp_path, caplog):
+    folder, _ = install_cache(tmp_path, response)
+    legacy(response, folder)
+    other = json.loads(json.dumps(response))
+    other['result']['uuid'] = 'a' * 32
+    foreign = tmp_path / 'foreign'
+    c, fp = legacy(other, foreign)
+    shutil.copy2(foreign / f'{c.name}.kicad_sym', folder)
+    shutil.copytree(fp.parent, folder / fp.parent.name)
+    kept = (folder / fp.parent.name / fp.name).read_bytes()
+    assert run_items([response['result']['uuid']], tmp_path) == 0
+    assert (folder / fp.parent.name / fp.name).read_bytes() == kept
+    assert 'Leaving unassociated legacy library' in caplog.text
+    assert libraries_complete(folder)
+
+
 @pytest.mark.parametrize('existing', [False, True])
 @pytest.mark.parametrize('failure', ['symbol', 'footprint', 'credits', 'manifest', 'before-publish', 'during-publish'])
 def test_failure_never_publishes_partial_or_destroys_previous(response, tmp_path, monkeypatch, existing, failure):
@@ -163,6 +204,73 @@ def test_corrupt_libraries_rebuild_and_preserve_edited_bytes(response, tmp_path)
     assert run_items([response['result']['uuid']], tmp_path) == 0
     assert libraries_complete(folder)
     assert next(folder.glob('*.kicad_sym.previous-*')).read_text() == broken
+
+
+@pytest.mark.parametrize('broken', ['', '(kicad_symbol_lib (symbol "x" (pin input line)))'])
+def test_empty_or_balanced_but_incomplete_library_is_not_skipped(response, tmp_path, broken):
+    folder, _ = install_cache(tmp_path, response)
+    c = write_conversion(response, folder)
+    (folder / f'{c.name}.kicad_sym').write_text(broken)
+    assert not libraries_complete(folder)
+    assert run_items([response['result']['uuid']], tmp_path) == 0
+    assert libraries_complete(folder)
+    assert next(folder.glob('*.kicad_sym.previous-*')).read_text() == broken
+
+
+def test_balanced_incomplete_legacy_pad_is_not_complete(response, tmp_path):
+    folder, _ = install_cache(tmp_path, response)
+    c = write_conversion(response, folder)
+    (folder / publication.COMPLETE).unlink()
+    fp = folder / f'{c.name}.pretty' / f'{c.name}.kicad_mod'
+    fp.write_text(f'(footprint "{c.name}" (generator "easyeda2kicad-local") (pad "1" smd rect))')
+    assert not libraries_complete(folder)
+    assert run_items([response['result']['uuid']], tmp_path) == 0
+    assert libraries_complete(folder)
+    assert list(fp.parent.glob('*.kicad_mod.previous-*'))
+
+
+def test_rollback_failure_keeps_recovery_material(response, tmp_path, monkeypatch):
+    folder, _ = install_cache(tmp_path, response)
+    write_conversion(response, folder)
+    before = snapshot(folder)
+    original = publication.os.replace
+    publishing = 0
+    failed = False
+    def replace(source, target):
+        nonlocal publishing, failed
+        if '.ee2kicad-stage-' in str(source) and Path(source).name == Path(target).name:
+            publishing += 1
+            if publishing == 2:
+                failed = True
+                raise OSError('publish interrupted')
+        elif failed and Path(target).suffix == '.kicad_sym':
+            raise OSError('rollback interrupted')
+        return original(source, target)
+    monkeypatch.setattr(publication.os, 'replace', replace)
+    response['result']['description'] = 'replacement'
+    with pytest.raises(OSError, match='rollback interrupted'):
+        write_conversion(response, folder)
+    assert (folder / publication.PENDING).exists()
+    assert list(folder.glob('.ee2kicad-backup-*'))
+    assert not libraries_complete(folder)
+    monkeypatch.setattr(publication.os, 'replace', original)
+    publication.recover(folder)
+    assert snapshot(folder) == before
+    assert libraries_complete(folder)
+
+
+def test_legacy_migration_preserves_separate_package_cache(response, tmp_path):
+    folder, _ = install_cache(tmp_path, response)
+    legacy(response, folder)
+    package = response['result'].pop('packageDetail')
+    raw = json.dumps(response).encode()
+    package_raw = json.dumps({'success': True, 'result': package}).encode()
+    (folder / 'raw.json').write_bytes(raw)
+    (folder / 'package_raw.json').write_bytes(package_raw)
+    assert run_items([response['result']['uuid']], tmp_path) == 0
+    assert (folder / 'raw.json').read_bytes() == raw
+    assert (folder / 'package_raw.json').read_bytes() == package_raw
+    assert libraries_complete(folder)
 
 
 def test_replacement_preserves_existing_source_and_libraries_on_real_process_exit(response, tmp_path):
@@ -247,6 +355,27 @@ def test_unrelated_library_is_not_overwritten(response, tmp_path):
     with pytest.raises(ValueError, match='unrelated library'):
         write_conversion(response, tmp_path)
     assert snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize('uuid', ['../escape', '/absolute', 'a' * 31, 'a' * 32 + '/../../x'])
+def test_response_uuid_cannot_escape_output(response, tmp_path, uuid):
+    response['result']['uuid'] = uuid
+    with pytest.raises(ValueError, match='invalid component UUID'):
+        write_conversion(response, tmp_path)
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='Symlink creation requires Windows privileges')
+def test_output_symlink_is_not_followed(response, tmp_path):
+    c = converter.convert_response(response)
+    folder = tmp_path / 'out'
+    folder.mkdir()
+    outside = tmp_path / 'user-file'
+    outside.write_bytes(b'keep outside bytes')
+    (folder / f'{c.name}.kicad_sym').symlink_to(outside)
+    with pytest.raises(ValueError, match='symlink'):
+        write_conversion(response, folder)
+    assert outside.read_bytes() == b'keep outside bytes'
 
 
 @pytest.mark.parametrize('text', ['(', ')', '(a) (b)', '(a "unterminated)', '(a))'])

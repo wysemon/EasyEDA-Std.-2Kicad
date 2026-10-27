@@ -1,4 +1,5 @@
 """Conversion orchestration and compatibility exports for the original API."""
+import json
 import logging
 import tempfile
 from collections import Counter
@@ -15,7 +16,15 @@ from .footprint import footprint_graphic as footprint_graphic
 from .footprint import layer as layer
 from .footprint import parse_pad as parse_pad
 from .footprint import render_footprint
-from .publication import digest, footprint_has_model, local_path, publish, recover, write_manifest
+from .publication import (
+    digest,
+    footprint_has_model,
+    libraries_complete,
+    local_path,
+    publish,
+    recover,
+    write_manifest,
+)
 from .sexpr import children, loads
 from .shared import UNIT as UNIT
 from .shared import Coordinates as Coordinates
@@ -42,6 +51,7 @@ from .symbol import unit_one as unit_one
 from .validation import validate_libraries
 
 log = logging.getLogger(__name__)
+COPPER_LAYERS = {'1', '2', '11', *(str(i) for i in range(21, 53))}
 
 
 @dataclass
@@ -73,7 +83,7 @@ def convert_response(response, package=None, *, library_name=None):
         fields = raw.split('~')
         kind = fields[0]
         layer_index = {'TRACK': 2, 'ARC': 2, 'SOLIDREGION': 1, 'RECT': 5, 'CIRCLE': 5}.get(kind)
-        copper = layer_index is not None and len(fields) > layer_index and fields[layer_index] in ('1', '2', '11')
+        copper = layer_index is not None and len(fields) > layer_index and fields[layer_index] in COPPER_LAYERS
         try:
             if kind == 'PAD':
                 pads.append(parse_pad(raw, fc))
@@ -127,11 +137,19 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                 continue  # A damaged current file can still be replaced safely.
             if (children(tree, 'generator') == [['generator', 'easyeda2kicad-local']]
                     and footprint_has_model(old) and old.stem != converted.name):
+                old_symbol = folder / f'{old.stem}.kicad_sym'
+                source_uuids = []
+                if old_symbol.exists():
+                    old_tree = loads(old_symbol.read_text(encoding='utf-8'))
+                    source_uuids = [p[2] for symbol in children(old_tree, 'symbol')
+                                    for p in children(symbol, 'property') if p[1] == 'EasyEDA UUID']
+                if source_uuids != [response['result']['uuid']]:
+                    log.warning('Leaving unassociated legacy library %s untouched; inspect/remove its model reference manually.', old)
+                    continue
                 if tree[1] != old.stem or safe_name(old.stem) != old.stem:
                     raise ValueError(f'Cannot safely migrate legacy footprint {old}; move it aside first')
                 alias = convert_response(response, package, library_name=old.stem)
                 artifacts[old.relative_to(folder).as_posix()] = alias.footprint
-                old_symbol = folder / f'{old.stem}.kicad_sym'
                 if old_symbol.exists():
                     artifacts[old_symbol.name] = alias.symbol
                 log.warning('Migrating legacy 3D-era library %s to 2D; existing model files are kept.', old.stem)
@@ -143,28 +161,37 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
         # Preserve edited generated files too. They may contain deliberate user
         # changes, even though their generator still identifies this converter.
         previous_manifest = folder / '.ee2kicad-complete.json'
+        previous = {}
         if previous_manifest.exists():
-            import json
             try:
-                previous = json.loads(previous_manifest.read_bytes())['files']
+                metadata = json.loads(previous_manifest.read_bytes())
+                if metadata['version'] == 1 and metadata['uuid'] == response['result']['uuid']:
+                    previous = metadata['files']
+                    if not isinstance(previous, dict):
+                        previous = {}
             except (ValueError, KeyError, TypeError):
                 previous = {}
-            for relative in list(artifacts):
-                target = local_path(folder, relative)
-                if (target.suffix in ('.kicad_sym', '.kicad_mod') and target.is_file()
-                        and relative in previous and digest(target) != previous[relative]):
-                    saved = relative + f'.previous-{digest(target)[:12]}'
-                    artifacts[saved] = target.read_bytes()
-                    log.warning('Modified library preserved in %s before rebuilding.', saved)
+        for relative, content in list(artifacts.items()):
+            target = local_path(folder, relative)
+            encoded = content.encode('utf-8') if isinstance(content, str) else content
+            if (target.suffix in ('.kicad_sym', '.kicad_mod') and target.is_file()
+                    and target.read_bytes() != encoded
+                    and (relative not in previous or digest(target) != previous[relative])):
+                saved = relative + f'.previous-{digest(target)[:12]}'
+                artifacts[saved] = target.read_bytes()
+                log.warning('Modified or legacy library preserved in %s before rebuilding.', saved)
         for relative, content in artifacts.items():
             target = local_path(folder, relative)
             if target.exists() and target.suffix in ('.kicad_sym', '.kicad_mod'):
                 text = target.read_text(encoding='utf-8')
-                if '(generator "easyeda2kicad-local")' not in text and '(generator easyeda2kicad-local)' not in text:
+                if (relative not in previous and '(generator "easyeda2kicad-local")' not in text
+                        and '(generator easyeda2kicad-local)' not in text):
                     raise ValueError(f'Refusing to overwrite an unrelated library: {target}; move it aside first')
             path = local_path(stage, relative)
             path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write(path, content)
+        if not libraries_complete(stage):
+            raise ValueError('Generated library structure is incomplete; previous libraries were kept')
         if validate:
             for symbol in stage.glob('*.kicad_sym'):
                 if not validate_libraries(stage, symbol.stem):
