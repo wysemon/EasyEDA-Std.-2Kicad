@@ -62,9 +62,34 @@ def effects(size=1.27, hidden=False, justify=None):
 
 class Coordinates:
     def __init__(self, data, symbol=False):
-        self.x = num(data['head'].get('x'))
-        self.y = num(data['head'].get('y'))
+        head = data['head']
+        canvas = data.get('canvas')
+        fields = canvas.split('~') if isinstance(canvas, str) else []
+        indices = (13, 14) if symbol else (16, 17)
+        resolved = []
+        fallbacks = []
+        for key, index in zip(('x', 'y'), indices):
+            candidates = [(head.get(key), 'head')]
+            if fields and fields[0] == 'CA' and len(fields) > index:
+                candidates.append((fields[index], 'canvas'))
+            for value, source in candidates:
+                if value in (None, '', 'undefined'):
+                    continue
+                try:
+                    coordinate = num(value)
+                except (TypeError, ValueError):
+                    continue
+                resolved.append(coordinate)
+                if source != 'head':
+                    fallbacks.append(f'{key} from {source}')
+                break
+            else:
+                raise ValueError(f'Cannot determine {key} origin from head or canvas')
+        self.x, self.y = resolved
         self.sign = -1 if symbol else 1
+        if fallbacks:
+            log.warning('Missing or invalid head origin; using %s (origin %s, %s).',
+                        ', '.join(fallbacks), f(self.x), f(self.y))
 
     def point(self, x, y):
         return ((num(x) - self.x) * UNIT, (num(y) - self.y) * UNIT * self.sign)

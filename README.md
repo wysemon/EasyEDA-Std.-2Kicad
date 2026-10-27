@@ -127,6 +127,7 @@ The launchers pass this location through `EE2KICAD_CWD`. Installed console comma
 | HTTP 403 or 429 | Stop and wait. Check that the component is public. Do not retry rapidly or bypass access restrictions. |
 | No internet | Check the connection and proxy settings. Cached `convert` still works offline. |
 | Private component or `success:false` | Use a public EasyEDA Standard component link. The app does not log in or bypass permissions. |
+| Symbol looks tiny or far from the origin | Update the app, run `run convert <uuid>` (or `./run.sh convert <uuid>`), then reload the library in KiCad. Older output may have used zero for a missing EasyEDA origin. |
 | Text or pins look wrong | Update the app and re-convert the cache. Check the source and warnings before using the result. Include the raw record when reporting a bug. |
 | Duplicate pin warning | All pins are kept. Check the source and connectivity in KiCad; the duplicate may be intentional. |
 | Dependencies need refreshing | Changes to `pyproject.toml` trigger this automatically. Delete `.venv/.ee2kicad-ready` to force a refresh. |

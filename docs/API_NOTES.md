@@ -17,7 +17,12 @@ as bytes; fallback responses live separately in `package_raw.json`.
 Positions below are zero-based after splitting a record on `~`, including type.
 `dataStr` may also arrive as a JSON string. Missing, empty and `undefined` fields
 use defaults. One drawing unit is 0.254 mm, regardless of canvas grid units.
-Subtract each document's head.x/y; negate Y only for symbols.
+Subtract each document's head.x/y; negate Y only for symbols. When head.x/y
+is missing, blank, `undefined` or invalid, use the canvas origin per axis:
+symbol canvas indices 13/14, footprint canvas indices 16/17 (zero-based,
+including CA). Keep valid explicit zeros. If neither origin source is usable,
+fail clearly instead of silently treating the drawing as originating at zero
+or guessing an anchor from the bounding box.
 
 | Record | Fields |
 | --- | --- |
@@ -221,3 +226,19 @@ EasyEDAClient's default pacing and bounded retries. No search or package
 fallback request is made. It checks the response and in-memory conversion. The
 normal pytest selection is `not live`; CI explicitly excludes live tests and
 the network fixture skips them whenever CI or EE2KICAD_DISABLE_LIVE is set.
+
+## ESP32 origin regression
+
+The real API responses `2e51d5a642224cf198048941f0630f26` and
+`dd15f28aa16b42c0803759cacb9683e8` omit symbol head.x/y. Both retain
+`3000,4000` as their symbol canvas origin. Defaulting the missing head values
+to zero placed their symbols approximately 762 mm right and 1016 mm down
+from KiCad's origin, making the normal-sized drawing appear tiny and displaced
+in the editor. These unchanged responses are now offline regression fixtures.
+
+Use the canvas origin without changing the 0.254 mm drawing-unit scale. Native
+KiCad save/import checks verify pin positions near (0,0), pin lengths, pad
+positions and physical dimensions. A native SVG regression includes an origin
+marker to catch origin-to-drawing view inflation; ordinary SVG auto-cropping
+alone had concealed the offset. The original four fixtures retain exactly the
+same pin positions, lengths and pad dimensions as the first working commit.
