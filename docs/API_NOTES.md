@@ -126,3 +126,44 @@ higher. The envelope includes pin paths, conservative rotated text extents and
 the source BBox. Circle/arc envelopes are conservative. This also works without
 a BBox. Every other property has `hide` inside `effects`, including EasyEDA UUID;
 source, author and other metadata remain stored.
+
+## Review fixes and remaining rotation/slot verification
+
+The footprint declares KiCad 8 version `20240108` and emits `property "Reference"`
+and `property "Value"`, rather than legacy `fp_text reference/value` records.
+User drawing labels remain `fp_text user`. Both symbol T drawing text and
+footprint TEXT drawing labels now use **75 mil = 1.905 mm**, irrespective of the
+source font size. Property and pin-label fonts stay at 1.27 mm. The symbol's
+text envelope uses the actual exported size when placing Reference/Value.
+
+**EasyEDA pad/text rotation sign and slot orientation remain unverified.**
+The old fixture has circular round pads at 180 degrees. The newer fixture has
+square pads at 0/90 degrees. These symmetric shapes cannot establish rotation
+sign. Both fixtures have holeRadius 1.968 and holeLength 3.937 drawing units:
+the 0.001-unit difference from diameter 3.936 is rounding noise, not an oval
+slot. The synthesized slot/rotation tests validate serialization only; they do
+not verify EasyEDA's physical drilling convention. The earlier stock KiCad
+checks establish KiCad angle units, not EasyEDA's pad/text rotation sign.
+
+A public Standard component link/UUID or raw component JSON with an asymmetric
+rotated pad and a genuine oval drill slot is requested before changing signs
+or claiming orientation verification. A source screenshot/dimensioned drawing
+would also allow checking the output against the intended drill axis.
+
+SVG arcs now read flags as individual characters, so compact `01`, `10`, and
+flags followed immediately by an endpoint number are supported. Client base
+cooldown must be at least 1 second (default 4 + 0–2 seconds jitter remains).
+Retry-After seconds/dates are capped at 300 seconds with a one-line warning.
+Two consecutive 403/429 responses still stop the entire run.
+
+A cached item is complete only with a `.kicad_sym` file and a
+`.pretty/*.kicad_mod` file. Incomplete libraries are rebuilt from raw cache
+without requests, including no footprint fallback or 3D download. Missing
+fallback cache is an offline error; explicit `--force` allows retrieval.
+Per-item exceptions are counted/logged and processing continues, except StopRun.
+
+Both launchers call the same stdlib-only `scripts/bootstrap.py`. The ready-marker
+contains the SHA-256 of pyproject.toml, and only advances after successful pip
+installation. They pass their original directory via `EE2KICAD_CWD`; relative
+input/output paths and interactive defaults use that directory. Windows CMD
+restores the saved `chcp` code page on both success and normal failure paths.

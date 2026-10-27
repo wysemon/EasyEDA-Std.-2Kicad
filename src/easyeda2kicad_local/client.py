@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import logging
+import math
 import random
 import re
 import time
@@ -42,8 +43,8 @@ def parse_uuid(value):
 class EasyEDAClient:
     def __init__(self, delay=4., *, client=None, sleep=time.sleep, clock=time.monotonic,
                  jitter=lambda: random.uniform(0, 2)):
-        if delay < 0:
-            raise ValueError('delay cannot be negative')
+        if not math.isfinite(delay) or delay < 1:
+            raise ValueError('--delay must be at least 1 second and finite')
         self.http = client or httpx.Client(headers=HEADERS, timeout=30., follow_redirects=False)
         self.delay, self.sleep, self.clock, self.jitter = delay, sleep, clock, jitter
         self.next_request = 0.
@@ -87,6 +88,9 @@ class EasyEDAClient:
                             wait = max(0., (date - datetime.now(timezone.utc)).total_seconds())
                         except (ValueError, TypeError, OverflowError):
                             pass
+                if wait > 300:
+                    log.warning('Retry-After exceeds 300 seconds; capped at 300 seconds.')
+                    wait = 300.
                 log.warning('HTTP %s; retrying in at least %.1f seconds', response.status_code, wait)
                 self.next_request = max(self.next_request, self.clock() + wait)
                 continue

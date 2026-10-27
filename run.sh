@@ -1,6 +1,8 @@
 #!/bin/sh
-# Run from the checkout so output and default links.txt always live beside this file.
+# Set up from the checkout; resolve user paths from the original directory.
 set -eu
+EE2KICAD_CWD=$(pwd -P)
+export EE2KICAD_CWD
 cd -- "$(dirname -- "$0")"
 export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
 
@@ -26,11 +28,5 @@ if ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/de
     echo 'The existing .venv needs Python 3.11+; rename .venv, install Python from https://www.python.org/downloads/ and retry.' >&2
     exit 1
 fi
-if [ ! -f .venv/.ee2kicad-ready ]; then
-    if ! .venv/bin/python -m pip install -e .; then
-        echo 'Setup failed; check your internet connection and Python/pip installation, then run this command again.' >&2
-        exit 1
-    fi
-    : > .venv/.ee2kicad-ready
-fi
+.venv/bin/python scripts/bootstrap.py
 exec .venv/bin/python -m easyeda2kicad_local "$@"

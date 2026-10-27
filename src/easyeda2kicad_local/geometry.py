@@ -47,11 +47,35 @@ def arc_points(start, values):
 
 def path_segments(path):
     """Yield (line|arc|ellipse, points) for M/L/H/V/A/Z. Reject other commands."""
-    tokens = re.findall(rf"[a-df-zA-DF-Z]|{NUMBER}", path)
     i, command, point, origin = 0, None, (0., 0.), (0., 0.)
-    while i < len(tokens):
-        if tokens[i].isalpha():
-            command = tokens[i]
+
+    def skip_separators():
+        nonlocal i
+        while i < len(path) and (path[i].isspace() or path[i] == ','):
+            i += 1
+
+    def read_value(flag=False):
+        nonlocal i
+        skip_separators()
+        # SVG flags are individual characters, even in "01" or "0110".
+        if flag:
+            if i >= len(path) or path[i] not in '01':
+                raise ValueError('SVG arc flag must be 0 or 1')
+            value = float(path[i])
+            i += 1
+            return value
+        match = re.compile(NUMBER).match(path, i)
+        if not match:
+            raise ValueError('incomplete or invalid SVG coordinate')
+        i = match.end()
+        return float(match[0])
+
+    while True:
+        skip_separators()
+        if i == len(path):
+            break
+        if path[i].isalpha():
+            command = path[i]
             i += 1
         if command is None:
             raise ValueError("path has no command")
@@ -64,10 +88,7 @@ def path_segments(path):
         count = {'M': 2, 'L': 2, 'H': 1, 'V': 1, 'A': 7}.get(upper)
         if count is None:
             raise ValueError(f"unsupported SVG command {command}")
-        values = list(map(float, tokens[i:i + count]))
-        if len(values) != count:
-            raise ValueError("incomplete SVG command")
-        i += count
+        values = [read_value(flag=upper == 'A' and index in (3, 4)) for index in range(count)]
         relative = command.islower()
         if upper in ('M', 'L'):
             end = (values[0] + (point[0] if relative else 0),

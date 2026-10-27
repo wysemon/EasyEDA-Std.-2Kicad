@@ -142,7 +142,7 @@ def test_text_envelope_clears_labels_above_body(response):
     c = convert_response(response)
     value = next(prop for prop in children(one(sexpr(c.symbol), 'symbol'), 'property') if prop[1] == 'Value')
     # Half the conservative length plus anchor, with room for the property glyphs.
-    text_top = 200 * .254 + len(fields[12]) * (9 * 25.4 / 72) / 2
+    text_top = 200 * .254 + len(fields[12]) * 1.905 / 2
     assert float(one(value, 'at')[2]) - .635 > text_top
     assert one(value, 'at')[1] == one(original_value, 'at')[1]
 

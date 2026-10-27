@@ -93,6 +93,11 @@ def experimental_model(package, folder, name, client):
         log.warning('3D model download failed; continuing without it: %s', e)
 
 
+def libraries_complete(folder):
+    return (any(p.is_file() for p in folder.glob('*.kicad_sym')) and
+            any(p.is_file() for p in folder.glob('*.pretty/*.kicad_mod')))
+
+
 def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=False,
               delay=4., with_3d=False, validate=False, verbose=False):
     failures = succeeded = skipped = 0
@@ -114,29 +119,38 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
         for symbol, pretty in sorted(libraries):
             print(f'add {symbol} in Symbol Libraries')
             print(f'add {pretty} in Footprint Libraries')
+
+    def error_status(uuid, status):
+        try:
+            append_log(root, uuid, status)
+        except Exception:
+            log.error('Could not write fetch log; check output folder permissions.', exc_info=verbose)
+
     with EasyEDAClient(delay) as client:
         for index, uuid in enumerate(items):
             try:
                 cached = find_cache(root, uuid)
                 if cached_only and not cached:
                     raise ValueError('No raw.json cache found; fetch this component first')
-                if cached and not cached_only and not force and not dry_run:
+                if cached and libraries_complete(cached) and not cached_only and not force and not dry_run:
                     log.info('Skipping cached item %s', uuid)
                     append_log(root, uuid, 'skipped')
-                    skipped += 1
                     remember(cached)
+                    skipped += 1
                     continue
                 # Dry runs read existing raw bytes even with --force, and write only in a temp directory.
-                raw = ((cached / 'raw.json').read_bytes() if cached and (cached_only or dry_run or not force)
-                       else client.component(uuid))
+                using_cache = bool(cached and (cached_only or dry_run or not force))
+                if using_cache:
+                    log.info('re-converting from cache: %s', uuid)
+                raw = ((cached / 'raw.json').read_bytes() if using_cache else client.component(uuid))
                 data = read_response(raw, uuid)
                 title = data['result'].get('title') or uuid
                 folder = cached or root / f'{safe_name(title)}_{uuid[:8]}'
-                if folder.exists() and not cached and not force and not dry_run:
+                if folder.exists() and libraries_complete(folder) and not cached and not force and not dry_run:
                     log.info('Skipping existing folder %s', folder)
                     append_log(root, uuid, 'skipped')
-                    skipped += 1
                     remember(folder)
+                    skipped += 1
                     continue
                 if dry_run:
                     with tempfile.TemporaryDirectory(prefix='easyeda2kicad-') as tmp:
@@ -154,16 +168,16 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                         succeeded += 1
                     continue
                 folder.mkdir(parents=True, exist_ok=True)
-                if not cached_only:
+                if not using_cache:
                     (folder / 'raw.json').write_bytes(raw)
-                package = resolve_package(data, folder, None if cached_only else client, force=force and not cached_only)
+                package = resolve_package(data, folder, None if using_cache else client, force=force and not using_cache)
                 converted = write_conversion(data, folder, package)
                 remember(folder)
                 if validate and not validate_libraries(folder, converted.name):
                     raise ValueError('KiCad validation failed; check the libraries or rerun with --verbose')
                 if with_3d:
-                    if cached_only:
-                        log.warning('Offline convert does not download models; use fetch --force --3d')
+                    if using_cache:
+                        log.warning('Cached conversion does not download models; use fetch --force --3d')
                     else:
                         experimental_model(package, folder, converted.name, client)
                 log.info('Converted %s: %d pins, %d pads -> %s', uuid, len(converted.pins), len(converted.pads), folder)
@@ -172,14 +186,14 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
             except StopRun as e:
                 log.error('%s', e, exc_info=verbose)
                 if not dry_run:
-                    append_log(root, uuid, 'stopped')
+                    error_status(uuid, 'stopped')
                 failures += 1
                 summary(len(items) - index - 1)
                 return 1
-            except (FetchError, OSError, ValueError, KeyError, TypeError, IndexError) as e:
+            except Exception as e:
                 failures += 1
                 log.error('%s: %s', uuid, str(e).replace('\n', ' '), exc_info=verbose)
                 if not dry_run:
-                    append_log(root, uuid, 'error')
+                    error_status(uuid, 'error')
     summary()
     return int(failures > 0)

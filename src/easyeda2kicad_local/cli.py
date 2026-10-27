@@ -1,5 +1,6 @@
 """Command-line and interactive entry points shared by all launchers."""
 import logging
+import os
 from pathlib import Path
 import sys
 from typing import Annotated
@@ -35,10 +36,16 @@ def fail(message, *, verbose=False):
     raise typer.Exit(1)
 
 
+def caller_path(path):
+    if path.is_absolute():
+        return path
+    return (Path(os.environ.get('EE2KICAD_CWD') or Path.cwd()) / path).resolve()
+
+
 def interactive_inputs():
     """Return fetch arguments; EOF and an empty line finish without a traceback."""
     try:
-        if Path('links.txt').is_file():
+        if caller_path(Path('links.txt')).is_file():
             answer = input('Found links.txt, use it? [Y/n] ').strip().lower()
             if answer in ('', 'y', 'yes'):
                 return ['--file', 'links.txt']
@@ -85,7 +92,7 @@ def fetch(
     file: Annotated[Path | None, typer.Option('--file', help='One URL/UUID per line; # comments allowed.')] = None,
     output: Annotated[Path, typer.Option('--output', '-o')] = Path('output'),
     force: Annotated[bool, typer.Option('--force')] = False,
-    delay: Annotated[float, typer.Option('--delay', min=0., help='Seconds between requests, plus 0–2s jitter.')] = 4.,
+    delay: Annotated[float, typer.Option('--delay', min=1., help='At least 1 second between requests, plus 0–2s jitter.')] = 4.,
     dry_run: Annotated[bool, typer.Option('--dry-run')] = False,
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
     with_3d: Annotated[bool, typer.Option('--3d', help='Experimental STEP download; placement unverified.')] = False,
@@ -94,6 +101,8 @@ def fetch(
     """Fetch, cache and convert components sequentially."""
     configure_console()
     setup_logging(verbose)
+    output = caller_path(output)
+    file = caller_path(file) if file is not None else None
     values = list(inputs or [])
     if file:
         try:
@@ -122,6 +131,7 @@ def convert(
     """Re-convert cached data without any network requests."""
     configure_console()
     setup_logging(verbose)
+    output = caller_path(output)
     try:
         uuid = parse_uuid(uuid)
     except ValueError as e:
