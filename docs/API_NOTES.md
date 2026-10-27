@@ -16,8 +16,7 @@ as bytes; fallback responses live separately in `package_raw.json`.
 
 Positions below are zero-based after splitting a record on `~`, including type.
 `dataStr` may also arrive as a JSON string. Missing, empty and `undefined` fields
-use defaults where supported; pad plating and copper text geometry require
-explicit verified values. One drawing unit is 0.254 mm, regardless of canvas grid units.
+use defaults where supported; copper text geometry requires explicit values. One drawing unit is 0.254 mm, regardless of canvas grid units.
 Subtract each document's head.x/y; negate Y only for symbols. When head.x/y
 is missing, blank, `undefined` or invalid, use the canvas origin per axis:
 symbol canvas indices 13/14, footprint canvas indices 16/17 (zero-based,
@@ -45,11 +44,13 @@ Round fixture pads: 7.6 units = 1.9304 mm; drill 3.936 units = 0.999744 mm;
 holeLength 3.937 differs only by rounding, so do not create a microscopic slot.
 Square fixture pads: 5.937 units = 1.507998 mm; pitch 60 x 70 units =
 15.24 x 17.78 mm. Round pad pitch: 10 units = 2.54 mm.
-PAD plating accepts exactly `Y` (plated) or `N` (non-plated); unknown, missing,
-lowercase or malformed flags fail rather than falling through to NPTH. Real
-fixture pads verify `Y`. The `N` mapping is a derived calibration checked with
-native KiCad; it is not an additional real non-plated component sample. NPTH
-pads use outer copper/mask layers, matching KiCad's native EasyEDA importer.
+PAD plating accepts `Y/N`, `yes/no`, `true/false` and `1/0` without case
+sensitivity. The older `b156dd17` header fixture verifies `yes`. Empty, missing
+or unknown through-hole plating defaults to plated with a warning; it never
+silently becomes NPTH. SMD pads do not use plating. Geometry/drill/layer checks
+still apply. The `N` mapping is a derived calibration checked with native KiCad;
+it is not an additional real non-plated component sample. NPTH pads use outer
+copper/mask layers, matching KiCad's native EasyEDA importer.
 
 **Fixture discrepancy resolved by user:** MAX98357A has **9** P records,
 not 7. Speaker pins `+` and `--` duplicate numbers 1 and 2 of the seven header

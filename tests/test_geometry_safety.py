@@ -69,7 +69,11 @@ def test_unsupported_decorative_fill_warns_without_bridging(response, caplog):
     assert 'compound filled SVG' in caplog.text
 
 
-@pytest.mark.parametrize('flag,kind', [('Y', 'thru_hole'), ('N', 'np_thru_hole')])
+@pytest.mark.parametrize(
+    'flag,kind',
+    [(v, 'thru_hole') for v in ('Y', 'y', 'yes', 'YES', 'True', 'true', '1')]
+    + [(v, 'np_thru_hole') for v in ('N', 'n', 'no', 'NO', 'False', 'false', '0')],
+)
 def test_explicit_plating_flags(response, flag, kind):
     doc = response['result']['packageDetail']['dataStr']
     fields = next(r for r in doc['shape'] if r.startswith('PAD~')).split('~')
@@ -78,25 +82,21 @@ def test_explicit_plating_flags(response, flag, kind):
     assert pad.kind == kind and pad.drill > 0
 
 
-@pytest.mark.parametrize(
-    'flag', ['', 'undefined', 'n', 'y', 'true', 'false', '0', '1', ' N', 'NPTH']
-)
-def test_unknown_plating_never_defaults_to_npth(response, flag):
-    shape = response['result']['packageDetail']['dataStr']['shape']
-    index = next(i for i, r in enumerate(shape) if r.startswith('PAD~'))
-    fields = shape[index].split('~')
+@pytest.mark.parametrize('flag', ['', 'undefined', 'NPTH', 'malformed'])
+def test_unknown_plating_defaults_to_plated_with_warning(response, flag, caplog):
+    doc = response['result']['packageDetail']['dataStr']
+    fields = next(r for r in doc['shape'] if r.startswith('PAD~')).split('~')
     fields[15] = flag
-    shape[index] = '~'.join(fields)
-    with pytest.raises(ValueError, match='invalid essential footprint PAD.*plating'):
-        convert_response(response)
+    pad = parse_pad('~'.join(fields), Coordinates(doc))
+    assert pad.kind == 'thru_hole'
+    assert 'defaulting to plated' in caplog.text
 
 
-def test_missing_plating_fails(response):
-    shape = response['result']['packageDetail']['dataStr']['shape']
-    index = next(i for i, r in enumerate(shape) if r.startswith('PAD~'))
-    shape[index] = '~'.join(shape[index].split('~')[:15])
-    with pytest.raises(ValueError, match='invalid essential footprint PAD'):
-        convert_response(response)
+def test_missing_plating_defaults_to_plated(response, caplog):
+    doc = response['result']['packageDetail']['dataStr']
+    raw = next(r for r in doc['shape'] if r.startswith('PAD~'))
+    assert parse_pad('~'.join(raw.split('~')[:15]), Coordinates(doc)).kind == 'thru_hole'
+    assert 'defaulting to plated' in caplog.text
 
 
 @pytest.mark.parametrize(

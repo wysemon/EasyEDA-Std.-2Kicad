@@ -1,11 +1,14 @@
 """EasyEDA pad/footprint parsing and KiCad footprint serialization."""
 
+import logging
 import math
 from dataclasses import dataclass
 
 from .bounds import courtyard
 from .geometry import check_polygon, point_pairs
 from .shared import UNIT, effects, f, num, q, stroke, svg_graphics
+
+log = logging.getLogger(__name__)
 
 # Layer 11 is handled by pad parsing as all copper/mask layers. Unsupported
 # drawing IDs deliberately have no fallback; see the verified table in API_NOTES.
@@ -98,9 +101,12 @@ def parse_pad(raw, coords):
     if shape is None or min(w, h) <= 0:
         raise ValueError('unsupported/invalid pad shape or size')
     through = t[6] == '11'
-    if t[15] not in ('Y', 'N'):
-        raise ValueError(f'unsupported pad plating value {t[15]!r}; expected Y or N')
-    kind = ('thru_hole' if t[15] == 'Y' else 'np_thru_hole') if through else 'smd'
+    flag = t[15] if len(t) > 15 else ''
+    plating = flag.strip().lower()
+    if through and plating not in ('y', 'yes', 'true', '1', 'n', 'no', 'false', '0'):
+        log.warning('Pad %s: unknown plating value %r; defaulting to plated.', t[8], flag)
+    plated = plating not in ('n', 'no', 'false', '0')
+    kind = ('thru_hole' if plated else 'np_thru_hole') if through else 'smd'
     if through and radius <= 0:
         raise ValueError('through-hole pad without drill')
     if through and num(t[13]) < 0:
