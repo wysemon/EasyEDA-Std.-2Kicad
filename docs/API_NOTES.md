@@ -12,7 +12,7 @@ API success is `success:true`; `result.dataStr` is the symbol and
 resolved using symbol `head.puuid` through the same endpoint. Preserve responses
 as bytes; fallback responses live separately in `package_raw.json`.
 
-## Fields verified against the two fixtures
+## Fields verified against the fixtures
 
 Positions below are zero-based after splitting a record on `~`, including type.
 `dataStr` may also arrive as a JSON string. Missing, empty and `undefined` fields
@@ -28,6 +28,9 @@ or guessing an anchor from the bounding box.
 | --- | --- |
 | Symbol R | x=1, y=2, corner radii=3/4, width=5, height=6, stroke width=8, fill=10 |
 | Symbol E | center x/y=1/2, radii=3/4, stroke=6, fill=8 |
+| Symbol A | SVG path=1, helperDots=2, stroke color=3, stroke width=4, style=5, fill=6 |
+| Symbol PL/PG | point pairs=1, stroke color=2, stroke width=3, style=4, fill=5 |
+| Symbol PT | SVG path=1, stroke color=2, stroke width=3 (derived regression; no real PT fixture) |
 | Symbol T | x/y=2/3, rotation=4, font size=7 (pt), text=12 |
 | Symbol P | main section: electrical type=2, fallback number=3, x/y=4/5, rotation=6; split `^^`: path=2, name=3, number=4, inversion=5, clock=6 |
 | Pin labels | text=4 inside name/number subsections; empty electrical type defaults to unspecified |
@@ -111,7 +114,7 @@ unverified drilling conventions.
 
 In the original MAX98357A/TP4056 fixtures, only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur.
 Other documented records are implemented conservatively and must be checked
-against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE, custom polygon pads,
+against real samples: PT/C, VIA/HOLE/CIRCLE, custom polygon pads,
 slots, multilayer SMD and pin clock/inversion.
 Unsupported optional drawings warn with UUID and raw line and are skipped.
 Malformed P/PAD/VIA/HOLE records and supported copper geometry fail the whole
@@ -504,3 +507,20 @@ The bare-point parser above now exports all five regions rather than skipping
 them. Source coordinate tests and native KiCad polygon checks verify their
 locations and layers. A GUI comparison with the author's original editor view
 has not been performed.
+
+## Symbol arc field-layout regression
+
+The Device_Buzzer fixture `82015f7d9a6543b7b998917289a50b78` verifies
+`A~path~helperDots~strokeColor~strokeWidth~style~fill~...`. Its stroke color
+is `#A00000` at index 3; stroke width `1` is at index 4 (0.254 mm). Reading
+index 3 as width skipped the buzzer's arc. Export that arc with its source
+endpoints, converted through the symbol origin and Y flip. `PT` has no
+helperDots field and keeps width at index 3; a derived regression guards the
+difference without claiming a real PT sample.
+
+A scan of all twelve component fixtures, including STM32 subparts, found no
+other symbol field-index failures. Their drawing records are R, E, T, PL, PG
+and A; existing pin checks cover P. Regression tests parse every fixture drawing
+and check stroke fields for R (8), E (6), PL/PG (3) and A (4). No real C or PT
+records occur in these fixtures, so their source layouts remain unverified by
+real samples. This fix changes only the A stroke-width lookup.

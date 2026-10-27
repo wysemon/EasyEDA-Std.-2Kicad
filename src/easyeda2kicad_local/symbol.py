@@ -146,7 +146,9 @@ def symbol_graphic(raw, coords):
             points.append(points[0])
         return [poly(points, num(t[3], 1) * UNIT, True, solid=kind == 'PG')]
     if kind in ('PT', 'A'):
-        return svg_graphics(t[1], coords, num(t[3], 1) * UNIT, True)
+        # A inserts helperDots before the color; PT has no helperDots field.
+        width_index = 4 if kind == 'A' else 3
+        return svg_graphics(t[1], coords, num(t[width_index], 1) * UNIT, True)
     raise ValueError(f'unsupported symbol element {kind}')
 
 
