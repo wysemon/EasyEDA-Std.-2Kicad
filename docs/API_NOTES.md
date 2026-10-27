@@ -174,3 +174,39 @@ contains the SHA-256 of pyproject.toml, and only advances after successful pip
 installation. They pass their original directory via `EE2KICAD_CWD`; relative
 input/output paths and interactive defaults use that directory. Windows CMD
 restores the saved `chcp` code page on both success and normal failure paths.
+
+## OLED and SX1308 real fixtures
+
+`6c69c66aa27f4c50aceb6e8226ef8d27` verifies footprint RECT:
+`RECT~x~y~width~height~layer~id~...`; **layer is index 5**, id index 6.
+Its two RECT records use layer 3 (F.SilkS). Unknown layers still warn and skip.
+Its footprint head contains an official-library license string, copied verbatim
+under `License (from source)` in CREDITS, alongside the existing source note.
+Any symbol-head license is preserved separately too.
+
+Hidden symbol properties form a left-justified column below the full drawing
+and pins, at 1.27 mm intervals. Description whitespace is collapsed and its
+property is at most 80 characters including `...`; CREDITS retains full source
+Description, and raw.json is unchanged. Only Reference/Value remain visible.
+The pin-name subsection flag controls name visibility; number flags are ignored
+and numbers remain visible. SX1308 pin 2's name is hidden; author T labels stay.
+
+`437e88cd34c64c1697331fe341e4a10f` (SX1308_Regulator) is the first real
+SVGNODE sample. Its JSON `attrs` contain:
+
+| Attribute | Source value |
+| --- | --- |
+| uuid | 2838c4425c9145bcaa4116a1d762772f |
+| c_origin | 4048.5394,3035.8268 |
+| c_rotation | 0,270,270 |
+| z | 21.6535 |
+| c_width | 87.4014 |
+| c_height | 67.3227 |
+
+The parser preserves these numbers in EasyEDA's source frame. Offline tests
+exercise this exact record and the STEP download route with a mock. The existing
+experimental --3d code downloads a STEP but **does not implement placement**.
+No relative model attachment or transform is guessed. No KiCad 3D viewer
+comparison has been performed. Pad/text rotation sign and oval drill orientation
+also still need a real source-to-KiCad comparison; parsing model attrs does not
+establish those conventions.

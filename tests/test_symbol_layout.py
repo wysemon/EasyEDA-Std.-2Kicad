@@ -95,7 +95,7 @@ def test_reference_value_position_and_hidden_metadata(response):
         effects = one(prop, 'effects')
         assert ('hide' not in effects) is (name in ('Reference', 'Value'))
         assert list(map(float, one(one(effects, 'font'), 'size')[1:])) == [1.27, 1.27]
-        assert not children(effects, 'justify')
+        assert children(effects, 'justify') == ([] if name in ('Reference', 'Value') else [['justify', 'left']])
     assert props['EasyEDA UUID'][2] == response['result']['uuid']
     ref = list(map(float, one(props['Reference'], 'at')[1:]))
     value = list(map(float, one(props['Value'], 'at')[1:]))

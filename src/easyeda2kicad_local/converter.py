@@ -56,8 +56,9 @@ def prefix(value):
     return re.sub(r'\d+$', '', (value or '').replace('?', '')) or 'U'
 
 
-def effects(size=1.27, hidden=False):
-    return f'(effects (font (size {f(size)} {f(size)})){" hide" if hidden else ""})'
+def effects(size=1.27, hidden=False, justify=None):
+    alignment = f' (justify {justify})' if justify else ''
+    return f'(effects (font (size {f(size)} {f(size)})){alignment}{" hide" if hidden else ""})'
 
 
 class Coordinates:
@@ -83,10 +84,11 @@ class Pin:
     length: float
     electrical: str
     style: str = 'line'
+    name_visible: bool = True
 
     def render(self):
         return (f'(pin {self.electrical} {self.style} (at {f(self.x)} {f(self.y)} {self.angle}) '
-                f'(length {f(self.length)}) (name {q(self.name)} {effects()}) '
+                f'(length {f(self.length)}) (name {q(self.name)} {effects(hidden=not self.name_visible)}) '
                 f'(number {q(self.number)} {effects()}))')
 
 
@@ -112,7 +114,7 @@ def parse_pin(raw, coords):
     inverted = len(sections) > 5 and sections[5][0] == '1'
     clock = len(sections) > 6 and sections[6][0] == '1'
     style = 'inverted_clock' if inverted and clock else 'inverted' if inverted else 'clock' if clock else 'line'
-    return Pin(number, name, x, y, angle, length, electrical, style)
+    return Pin(number, name, x, y, angle, length, electrical, style, sections[3][0] != '0')
 
 
 def layer(value):
@@ -201,7 +203,7 @@ def symbol_graphic(raw, coords):
     raise ValueError(f'unsupported symbol element {kind}')
 
 
-def symbol_label_position(data, coords, graphics, pins):
+def symbol_label_position(data, coords, graphics, pins, below=False):
     """Center over body geometry; clear the entire converted drawing and pins.
 
     Generated primitives are already in KiCad mm. The source BBox is included
@@ -251,6 +253,8 @@ def symbol_label_position(data, coords, graphics, pins):
                       coords.point(num(box['x']) + num(box['width']), num(box['y']) + num(box['height']))])
     centered = body or outer
     center = (min(x for x, _ in centered) + max(x for x, _ in centered)) / 2
+    if below:
+        return min(x for x, _ in centered), min(y for _, y in outer) - 2.54
     top = max(y for _, y in outer)
     return center, top + 2.54
 
@@ -350,7 +354,7 @@ def footprint_graphic(raw, coords):
     if kind == 'RECT':
         x, y = num(t[1]), num(t[2])
         return [f'(fp_rect (start {coords.xy(x, y)}) (end {coords.xy(x + num(t[3]), y + num(t[4]))}) '
-                f'{stroke(.254)} (fill none) (layer {q(layer(t[6]))}))']
+                f'{stroke(.254)} (fill none) (layer {q(layer(t[5]))}))']
     if kind == 'HOLE':
         diameter = 2 * num(t[3]) * UNIT
         return [f'(pad "" np_thru_hole circle (at {coords.xy(t[1], t[2])}) '
@@ -362,6 +366,11 @@ def footprint_graphic(raw, coords):
     if kind == 'SVGNODE':
         return []  # Explicit optional handling after credits generation.
     raise ValueError(f'unsupported footprint element {kind}')
+
+
+def short_description(text):
+    text = ' '.join(text.split())
+    return text if len(text) <= 80 else text[:77] + '...'
 
 
 def owner(component):
@@ -450,15 +459,21 @@ def convert_response(response, package=None):
     source = f'https://easyeda.com/component/{result["uuid"]}'
     properties = {'Reference': prefix(para.get('pre')), 'Value': result.get('title', name),
                   'Footprint': f'{name}:{name}', 'Datasheet': para.get('link') or '',
-                  'Description': result.get('description') or '', 'Author': owner(result),
+                  'Description': short_description(result.get('description') or ''), 'Author': owner(result),
                   'Source': source, 'EasyEDA UUID': result['uuid']}
     center, value_y = symbol_label_position(data, sc, sg, pins)
     # Property angles are degrees; graphic text above uses deci-degrees.
     positions = {'Reference': (center, value_y + 2.54), 'Value': (center, value_y)}
-    props = '\n'.join(
-        f'(property {q(k)} {q(v)} (at {f(positions.get(k, (center, 0))[0])} '
-        f'{f(positions.get(k, (center, 0))[1])} 0) {effects(hidden=k not in positions)})'
-        for k, v in properties.items())
+    hidden_x, hidden_y = symbol_label_position(data, sc, sg, pins, below=True)
+    rows = []
+    for key, value in properties.items():
+        hidden = key not in positions
+        x, y = (hidden_x, hidden_y) if hidden else positions[key]
+        rows.append(f'(property {q(key)} {q(value)} (at {f(x)} {f(y)} 0) '
+                    f'{effects(hidden=hidden, justify="left" if hidden else None)})')
+        if hidden:
+            hidden_y -= 1.27
+    props = '\n'.join(rows)
     symbol = (f'(kicad_symbol_lib (version 20231120) (generator "easyeda2kicad-local")\n'
               f'(symbol {q(name)} (pin_names (offset 0.508)) (in_bom yes) (on_board yes)\n{props}\n'
               f'(symbol {q(name + "_0_1")}\n' + '\n'.join(sg) + ')\n'
@@ -471,6 +486,10 @@ def convert_response(response, package=None):
     credits = (f'Source: {source}\nTitle: {result.get("title", name)}\nSymbol author: {owner(result)}\n'
                f'Footprint author: {owner(package)}\nupdateTime: {result.get("updateTime", "unknown")}\n'
                f'Footprint updateTime: {package.get("updateTime", "unknown")}\nLicense note: {note}\n')
+    credits += f'Description (from source):\n{result.get("description") or ""}\n'
+    for label, head in zip(('symbol', 'footprint'), heads):
+        if isinstance(head.get('license'), str):
+            credits += f'\nLicense (from source) [{label}]:\n{head["license"]}\n'
     return Conversion(name, pins, pads, symbol, footprint, credits)
 
 

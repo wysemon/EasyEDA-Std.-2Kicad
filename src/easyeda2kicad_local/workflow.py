@@ -8,6 +8,7 @@ import tempfile
 from .client import EasyEDAClient, FetchError, StopRun, UUID
 from .converter import document, safe_name, write_conversion
 from .validation import validate_libraries
+from .models import parse_svgnode
 
 log = logging.getLogger(__name__)
 
@@ -70,9 +71,10 @@ def experimental_model(package, folder, name, client):
     for shape in data.get('shape', []):
         if shape.startswith('SVGNODE~'):
             try:
-                attrs = json.loads(shape.split('~', 1)[1]).get('attrs', {})
-                uuid = attrs.get('uuid') or uuid
-            except (ValueError, TypeError, AttributeError):
+                model = parse_svgnode(shape)
+                uuid = model.uuid
+                log.debug('Source model placement (unverified): %s', model)
+            except (ValueError, KeyError, TypeError, AttributeError):
                 log.warning('Unrecognized experimental SVGNODE: %s', shape)
     if not uuid:
         log.warning('No 3D model reference; continuing without a model')
