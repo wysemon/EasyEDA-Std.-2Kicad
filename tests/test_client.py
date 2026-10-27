@@ -10,16 +10,23 @@ def test_input(text):
     assert parse_uuid(text) == NEW
 
 
-@pytest.mark.parametrize('text', ['abc', f'https://evil.test/component/{NEW}',
-                                  f'https://easyeda.com@evil.test/component/{NEW}',
-                                  f'http://easyeda.com/component/{NEW}', f'https://easyeda.com/foo/{NEW}'])
+@pytest.mark.parametrize(
+    'text',
+    [
+        'abc',
+        f'https://evil.test/component/{NEW}',
+        f'https://easyeda.com@evil.test/component/{NEW}',
+        f'http://easyeda.com/component/{NEW}',
+        f'https://easyeda.com/foo/{NEW}',
+    ],
+)
 def test_reject_input(text):
     with pytest.raises(ValueError):
         parse_uuid(text)
 
 
 class Clock:
-    now = 100.
+    now = 100.0
 
     def __init__(self):
         self.sleeps = []
@@ -39,8 +46,12 @@ def make_client(statuses, headers=None):
         status = next(queue)
         return httpx.Response(status, headers=headers or {}, json={'success': True})
 
-    client = EasyEDAClient(client=httpx.Client(transport=httpx.MockTransport(handler)),
-                          sleep=clock.sleep, clock=lambda: clock.now, jitter=lambda: 1.)
+    client = EasyEDAClient(
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        sleep=clock.sleep,
+        clock=lambda: clock.now,
+        jitter=lambda: 1.0,
+    )
     return client, clock, calls
 
 
@@ -49,7 +60,7 @@ def test_pacing_and_headers():
     with client:
         client.component(NEW)
         client.component(NEW)
-    assert clock.sleeps == [0., 5.]
+    assert clock.sleeps == [0.0, 5.0]
     request = calls[0]
     assert request.url.host == 'easyeda.com'
     assert dict(request.url.params) == {'version': '6.5.60', 'uuid': NEW}
@@ -61,14 +72,14 @@ def test_backoff_max_tries():
     client, clock, calls = make_client([503, 503, 503])
     with client, pytest.raises(FetchError, match='after 3 tries'):
         client.component(NEW)
-    assert clock.sleeps == [0., 30., 60.] and len(calls) == 3
+    assert clock.sleeps == [0.0, 30.0, 60.0] and len(calls) == 3
 
 
 def test_retry_after():
     client, clock, calls = make_client([429, 200], {'Retry-After': '75'})
     with client:
         client.component(NEW)
-    assert clock.sleeps == [0., 75.]
+    assert clock.sleeps == [0.0, 75.0]
 
 
 def test_cross_item_stop():
@@ -87,11 +98,16 @@ def test_redirect_not_followed():
 
 def test_redirects_disabled_even_for_supplied_redirect_following_client():
     calls = []
+
     def handler(request):
         calls.append(request)
         return httpx.Response(302, headers={'Location': 'https://third-party.test/private'})
+
     http = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
-    with EasyEDAClient(client=http, sleep=lambda _: None) as client, pytest.raises(FetchError, match='redirects'):
+    with (
+        EasyEDAClient(client=http, sleep=lambda _: None) as client,
+        pytest.raises(FetchError, match='redirects'),
+    ):
         client.component(NEW)
     assert len(calls) == 1 and calls[0].url.host == 'easyeda.com'
 
@@ -100,7 +116,7 @@ def test_nan_retry_after_keeps_normal_backoff():
     client, clock, calls = make_client([503, 200], {'Retry-After': 'NaN'})
     with client:
         client.component(NEW)
-    assert clock.sleeps == [0., 30.] and len(calls) == 2
+    assert clock.sleeps == [0.0, 30.0] and len(calls) == 2
 
 
 def test_reject_destination():
@@ -116,8 +132,16 @@ def test_url_variants(host, suffix):
     assert parse_uuid(f'https://{host}/component/{NEW}{suffix}') == NEW
 
 
-@pytest.mark.parametrize('host', ['www.easyeda.com.evil.test', 'easyeda.com.evil.test',
-                                  'evil.test', 'easyeda.com:443', 'user@easyeda.com'])
+@pytest.mark.parametrize(
+    'host',
+    [
+        'www.easyeda.com.evil.test',
+        'easyeda.com.evil.test',
+        'evil.test',
+        'easyeda.com:443',
+        'user@easyeda.com',
+    ],
+)
 def test_reject_host_variants(host):
     with pytest.raises(ValueError):
         parse_uuid(f'https://{host}/component/{NEW}')
@@ -125,6 +149,7 @@ def test_reject_host_variants(host):
 
 def test_editor_version_constant_is_sent():
     from easyeda2kicad_local.client import EDITOR_VERSION
+
     client, clock, calls = make_client([200])
     with client:
         client.component(NEW)

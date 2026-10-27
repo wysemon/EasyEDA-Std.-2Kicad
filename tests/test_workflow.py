@@ -60,14 +60,17 @@ def test_fallback_is_separate_and_offline(response, tmp_path, monkeypatch):
 
     def component(self, uuid):
         calls.append(uuid)
-        return json.dumps(original if uuid == original['result']['uuid'] else
-                          {'success': True, 'result': package}).encode()
+        return json.dumps(
+            original if uuid == original['result']['uuid'] else {'success': True, 'result': package}
+        ).encode()
 
     monkeypatch.setattr(EasyEDAClient, 'component', component)
     uuid = original['result']['uuid']
     assert run_items([uuid], tmp_path) == 0
     assert calls == [uuid, package['uuid']]
-    assert 'packageDetail' not in json.loads(next(tmp_path.glob('*/raw.json')).read_bytes())['result']
+    assert (
+        'packageDetail' not in json.loads(next(tmp_path.glob('*/raw.json')).read_bytes())['result']
+    )
     assert next(tmp_path.glob('*/package_raw.json')).exists()
     assert run_items([uuid], tmp_path, cached_only=True) == 0
     assert len(calls) == 2
@@ -101,12 +104,16 @@ def test_cli_file_and_errors(response, tmp_path):
     assert runner.invoke(app, ['convert', '0' * 32, '-o', str(tmp_path)]).exit_code != 0
 
 
-def test_log_failure_does_not_mislabel_committed_conversion(response, tmp_path, monkeypatch, capsys, caplog):
+def test_log_failure_does_not_mislabel_committed_conversion(
+    response, tmp_path, monkeypatch, capsys, caplog
+):
     from easyeda2kicad_local import workflow
 
     folder, _ = install_cache(tmp_path, response)
+
     def fail_log(*args):
         raise OSError('log is not writable')
+
     monkeypatch.setattr(workflow, 'append_log', fail_log)
     uuid = response['result']['uuid']
     assert run_items([uuid], tmp_path) == 0

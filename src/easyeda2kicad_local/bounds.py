@@ -1,10 +1,23 @@
 """Conservative physical footprint bounds, excluding text and documentation."""
+
 import math
 
 from .sexpr import children, loads
 
-BODY_LAYERS = {'F.Cu', 'B.Cu', 'F.Paste', 'B.Paste', 'F.Mask', 'B.Mask',
-               'F.SilkS', 'B.SilkS', 'F.Fab', 'B.Fab', 'Edge.Cuts', 'User.3'}
+BODY_LAYERS = {
+    'F.Cu',
+    'B.Cu',
+    'F.Paste',
+    'B.Paste',
+    'F.Mask',
+    'B.Mask',
+    'F.SilkS',
+    'B.SilkS',
+    'F.Fab',
+    'B.Fab',
+    'Edge.Cuts',
+    'User.3',
+}
 
 
 def values(node, kind):
@@ -19,6 +32,7 @@ def rotated_box(x, y, width, height, angle):
 
 
 def pad_points(node):
+    """Collect conservative pad, primitive and drill extents in footprint mm."""
     at = values(node, 'at')
     x, y = at[:2]
     angle = at[2] if len(at) > 2 else 0
@@ -32,8 +46,12 @@ def pad_points(node):
         for primitive in children(children(node, 'primitives')[0], 'gr_poly'):
             for xy in children(children(primitive, 'pts')[0], 'xy'):
                 px, py = map(float, xy[1:])
-                points.append((x + px * math.cos(a) - py * math.sin(a),
-                               y + px * math.sin(a) + py * math.cos(a)))
+                points.append(
+                    (
+                        x + px * math.cos(a) - py * math.sin(a),
+                        y + px * math.sin(a) + py * math.cos(a),
+                    )
+                )
     for drill in children(node, 'drill'):
         dims = list(map(float, drill[2:] if drill[1] == 'oval' else drill[1:]))
         points.extend(rotated_box(x, y, dims[0], dims[-1], angle))
@@ -41,6 +59,7 @@ def pad_points(node):
 
 
 def arc_extrema(start, mid, end):
+    """Include quadrant extrema only when the start/mid/end arc crosses them."""
     ax, ay = start
     bx, by = mid
     cx, cy = end
@@ -56,8 +75,11 @@ def arc_extrema(start, mid, end):
     ccw = (middle - first) % tau <= (last - first) % tau
     result = [start, end, mid]
     for angle in (0, math.pi / 2, math.pi, 3 * math.pi / 2):
-        inside = ((angle - first) % tau <= (last - first) % tau + 1e-9 if ccw else
-                  (first - angle) % tau <= (first - last) % tau + 1e-9)
+        inside = (
+            (angle - first) % tau <= (last - first) % tau + 1e-9
+            if ccw
+            else (first - angle) % tau <= (first - last) % tau + 1e-9
+        )
         if inside:
             result.append((x + radius * math.cos(angle), y + radius * math.sin(angle)))
     return result
@@ -88,10 +110,13 @@ def graphic_points(node):
 
 
 def courtyard(pads, graphics):
+    """Enclose physical geometry without distant text or documentation layers."""
     points = [point for pad in pads for point in pad_points(loads(pad.render()))]
     points.extend(point for graphic in graphics for point in graphic_points(loads(graphic)))
     # 0.25 mm clearance, rounded outwards to KiCad's usual 0.05 mm grid.
-    return (math.floor((min(x for x, _ in points) - .25) / .05 + 1e-9) * .05,
-            math.floor((min(y for _, y in points) - .25) / .05 + 1e-9) * .05,
-            math.ceil((max(x for x, _ in points) + .25) / .05 - 1e-9) * .05,
-            math.ceil((max(y for _, y in points) + .25) / .05 - 1e-9) * .05)
+    return (
+        math.floor((min(x for x, _ in points) - 0.25) / 0.05 + 1e-9) * 0.05,
+        math.floor((min(y for _, y in points) - 0.25) / 0.05 + 1e-9) * 0.05,
+        math.ceil((max(x for x, _ in points) + 0.25) / 0.05 - 1e-9) * 0.05,
+        math.ceil((max(y for _, y in points) + 0.25) / 0.05 - 1e-9) * 0.05,
+    )

@@ -26,7 +26,7 @@ def test_golden_geometry(response, caplog):
     assert len(c.pins) == (9 if is_old else 4)
     assert len(c.pads) == (7 if is_old else 4)
     assert {p.number for p in c.pins} <= {p.number for p in c.pads}
-    assert all(p.kind == 'thru_hole' and p.drill == pytest.approx(1, abs=.001) for p in c.pads)
+    assert all(p.kind == 'thru_hole' and p.drill == pytest.approx(1, abs=0.001) for p in c.pads)
     assert all(p.width == pytest.approx(1.9304 if is_old else 1.507998) for p in c.pads)
     assert all(p.shape == ('circle' if is_old else 'rect') for p in c.pads)
     assert all('(drill oval' not in p.render() for p in c.pads)
@@ -40,8 +40,12 @@ def test_golden_geometry(response, caplog):
         assert next(p for p in c.pins if p.name == '+').angle == 180
         assert c.footprint.count('(fp_arc ') == 6
     else:
-        assert max(p.x for p in c.pads) - min(p.x for p in c.pads) == pytest.approx(15.24, abs=.001)
-        assert max(p.y for p in c.pads) - min(p.y for p in c.pads) == pytest.approx(17.78, abs=.001)
+        assert max(p.x for p in c.pads) - min(p.x for p in c.pads) == pytest.approx(
+            15.24, abs=0.001
+        )
+        assert max(p.y for p in c.pads) - min(p.y for p in c.pads) == pytest.approx(
+            17.78, abs=0.001
+        )
         pin = next(p for p in c.pins if p.number == '3')
         assert (pin.x, pin.y) == pytest.approx((8.89, 14.224))
         assert pin.angle == 270 and pin.length == pytest.approx(5.08)
@@ -56,8 +60,10 @@ def test_tolerant_unknown_and_missing_pad_warning(response, caplog):
     changed = copy.deepcopy(response)
     changed['result']['dataStr']['shape'].append('FUTURE~whatever')
     changed['result']['packageDetail']['dataStr']['shape'] = [
-        s for s in changed['result']['packageDetail']['dataStr']['shape']
-        if not (s.startswith('PAD~') and len(s.split('~')) > 8 and s.split('~')[8] == '1')]
+        s
+        for s in changed['result']['packageDetail']['dataStr']['shape']
+        if not (s.startswith('PAD~') and len(s.split('~')) > 8 and s.split('~')[8] == '1')
+    ]
     c = convert_response(changed)
     assert len(c.pads) >= 3
     assert 'FUTURE~whatever' in caplog.text
@@ -67,7 +73,9 @@ def test_tolerant_unknown_and_missing_pad_warning(response, caplog):
 def test_string_documents_and_multiunit(response, caplog):
     changed = copy.deepcopy(response)
     changed['result']['dataStr'] = json.dumps(changed['result']['dataStr'])
-    changed['result']['packageDetail']['dataStr'] = json.dumps(changed['result']['packageDetail']['dataStr'])
+    changed['result']['packageDetail']['dataStr'] = json.dumps(
+        changed['result']['packageDetail']['dataStr']
+    )
     assert convert_response(changed).pads
 
 
@@ -122,11 +130,18 @@ def test_kicad_imports(response, tmp_path):
         directory = tmp_path / name.lower()
         directory.mkdir()
         env[name] = str(directory)
-    for kind, source in [('sym', tmp_path / 'libraries' / f'{c.name}.kicad_sym'),
-                         ('fp', tmp_path / 'libraries' / f'{c.name}.pretty')]:
+    for kind, source in [
+        ('sym', tmp_path / 'libraries' / f'{c.name}.kicad_sym'),
+        ('fp', tmp_path / 'libraries' / f'{c.name}.pretty'),
+    ]:
         out = tmp_path / kind
-        run = subprocess.run([executable, kind, 'export', 'svg', '--output', str(out), str(source)],
-                             env=env, capture_output=True, text=True, timeout=30)
+        run = subprocess.run(
+            [executable, kind, 'export', 'svg', '--output', str(out), str(source)],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
         assert run.returncode == 0, run.stdout + run.stderr
         svgs = list(out.glob('*.svg'))
         assert svgs and all(s.stat().st_size > 100 for s in svgs), run.stdout + run.stderr
@@ -161,12 +176,15 @@ def test_fixture_pin_path_tokenization(response):
         assert 'M 3035 3944 v 20' in paths
 
 
-@pytest.mark.parametrize('path,points', [
-    ('M10-5h-2v+3', [[(10., -5.), (8., -5.)], [(8., -5.), (8., -2.)]]),
-    ('M1e1-5L.5-.25', [[(10., -5.), (.5, -.25)]]),
-    ('M500 233h -10', [[(500., 233.), (490., 233.)]]),
-    ('M 3035 3944 v 20', [[(3035., 3944.), (3035., 3964.)]]),
-])
+@pytest.mark.parametrize(
+    'path,points',
+    [
+        ('M10-5h-2v+3', [[(10.0, -5.0), (8.0, -5.0)], [(8.0, -5.0), (8.0, -2.0)]]),
+        ('M1e1-5L.5-.25', [[(10.0, -5.0), (0.5, -0.25)]]),
+        ('M500 233h -10', [[(500.0, 233.0), (490.0, 233.0)]]),
+        ('M 3035 3944 v 20', [[(3035.0, 3944.0), (3035.0, 3964.0)]]),
+    ],
+)
 def test_compact_numbers_and_commands(path, points):
     assert [pts for kind, pts in path_segments(path)] == points
 

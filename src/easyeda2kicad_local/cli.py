@@ -1,4 +1,5 @@
 """Command-line and interactive entry points shared by all launchers."""
+
 import logging
 import os
 import sys
@@ -11,8 +12,11 @@ from . import __version__
 from .client import parse_uuid
 from .workflow import run_items
 
-app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False,
-                  help='Convert public EasyEDA Standard components into local KiCad libraries.')
+app = typer.Typer(
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+    help='Convert public EasyEDA Standard components into local KiCad libraries.',
+)
 
 
 def version_callback(value):
@@ -22,7 +26,11 @@ def version_callback(value):
 
 
 @app.callback()
-def root(version: Annotated[bool, typer.Option('--version', callback=version_callback, is_eager=True)] = False):
+def root(
+    version: Annotated[
+        bool, typer.Option('--version', callback=version_callback, is_eager=True)
+    ] = False,
+):
     """Convert EasyEDA Standard components locally."""
 
 
@@ -34,8 +42,9 @@ def configure_console():
 
 
 def setup_logging(verbose):
-    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO,
-                        format='%(message)s', force=True)
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO, format='%(message)s', force=True
+    )
     # Never log HTTP headers, credentials, cookies or proxy configuration.
     logging.getLogger('httpcore').setLevel(logging.WARNING)
     logging.getLogger('httpx').setLevel(logging.WARNING)
@@ -49,6 +58,7 @@ def fail(message, *, verbose=False):
 
 
 def caller_path(path):
+    """Resolve user paths relative to the invoking directory, not the checkout."""
     if path.is_absolute():
         return path
     return (Path(os.environ.get('EE2KICAD_CWD') or Path.cwd()) / path).resolve()
@@ -94,20 +104,35 @@ def main(args=None):
         if verbose:
             logging.getLogger(__name__).exception('Error')
         else:
-            typer.echo(f'Error: {str(e).replace(chr(10), " ")}; check the input/output paths and retry (use --verbose for details).', err=True)
+            typer.echo(
+                f'Error: {str(e).replace(chr(10), " ")}; check the input/output paths and retry (use --verbose for details).',
+                err=True,
+            )
         raise SystemExit(1) from None
 
 
 @app.command()
 def fetch(
-    inputs: Annotated[list[str] | None, typer.Argument(help='Component URLs or 32-hex UUIDs.')] = None,
-    file: Annotated[Path | None, typer.Option('--file', help='One URL/UUID per line; # comments allowed.')] = None,
+    inputs: Annotated[
+        list[str] | None, typer.Argument(help='Component URLs or 32-hex UUIDs.')
+    ] = None,
+    file: Annotated[
+        Path | None, typer.Option('--file', help='One URL/UUID per line; # comments allowed.')
+    ] = None,
     output: Annotated[Path, typer.Option('--output', '-o')] = Path('output'),
     force: Annotated[bool, typer.Option('--force')] = False,
-    delay: Annotated[float, typer.Option('--delay', min=1., help='At least 1 second between requests, plus 0–2s jitter.')] = 4.,
+    delay: Annotated[
+        float,
+        typer.Option(
+            '--delay', min=1.0, help='At least 1 second between requests, plus 0–2s jitter.'
+        ),
+    ] = 4.0,
     dry_run: Annotated[bool, typer.Option('--dry-run')] = False,
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
-    validate: Annotated[bool, typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.')] = False,
+    validate: Annotated[
+        bool,
+        typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.'),
+    ] = False,
 ):
     """Fetch, cache and convert components sequentially."""
     configure_console()
@@ -117,18 +142,35 @@ def fetch(
     values = list(inputs or [])
     if file:
         try:
-            values.extend(line.strip() for line in file.read_text(encoding='utf-8-sig').splitlines()
-                          if line.strip() and not line.lstrip().startswith('#'))
+            values.extend(
+                line.strip()
+                for line in file.read_text(encoding='utf-8-sig').splitlines()
+                if line.strip() and not line.lstrip().startswith('#')
+            )
         except (OSError, UnicodeError) as e:
-            fail(f'Cannot read {file}: {e}; check the path and save the file as UTF-8.', verbose=verbose)
+            fail(
+                f'Cannot read {file}: {e}; check the path and save the file as UTF-8.',
+                verbose=verbose,
+            )
     if not values:
-        fail('Supply a URL/UUID or --file links.txt, or run ee2kicad with no arguments for prompts.')
+        fail(
+            'Supply a URL/UUID or --file links.txt, or run ee2kicad with no arguments for prompts.'
+        )
     try:
         items = list(dict.fromkeys(parse_uuid(value) for value in values))
     except ValueError as e:
         fail(f'{e}; paste a public EasyEDA Standard component link or its UUID.', verbose=verbose)
-    raise typer.Exit(run_items(items, output, force=force, delay=delay, dry_run=dry_run,
-                               validate=validate, verbose=verbose))
+    raise typer.Exit(
+        run_items(
+            items,
+            output,
+            force=force,
+            delay=delay,
+            dry_run=dry_run,
+            validate=validate,
+            verbose=verbose,
+        )
+    )
 
 
 @app.command()
@@ -137,7 +179,10 @@ def convert(
     output: Annotated[Path, typer.Option('--output', '-o')] = Path('output'),
     dry_run: Annotated[bool, typer.Option('--dry-run')] = False,
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
-    validate: Annotated[bool, typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.')] = False,
+    validate: Annotated[
+        bool,
+        typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.'),
+    ] = False,
 ):
     """Re-convert cached data without any network requests."""
     configure_console()
@@ -147,5 +192,8 @@ def convert(
         uuid = parse_uuid(uuid)
     except ValueError as e:
         fail(f'{e}; use the UUID of a cached component.', verbose=verbose)
-    raise typer.Exit(run_items([uuid], output, cached_only=True, dry_run=dry_run,
-                               validate=validate, verbose=verbose))
+    raise typer.Exit(
+        run_items(
+            [uuid], output, cached_only=True, dry_run=dry_run, validate=validate, verbose=verbose
+        )
+    )

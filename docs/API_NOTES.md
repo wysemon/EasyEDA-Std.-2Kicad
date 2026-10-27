@@ -84,18 +84,17 @@ Nonempty `subparts` is an explicit unsupported multi-unit error, even alongside
 top-level shapes; empty/missing subparts keeps single-unit behavior. There is
 no unit-1 compatibility option because no verified complete unit layout exists.
 
-## Implementation and validation plan
+## Conversion pipeline
 
-1. Build a sequential httpx fetcher with pacing, bounded retries, cross-item
-   throttling detection, byte-preserving cache and append-only status log.
-2. Implement independent tolerant geometry parsers and KiCad serializers,
-   footprint first, then symbol and source credits (2D only).
-3. Expose Typer fetch/convert commands, file input, force, delay, dry-run and
-   verbose flags. Cached convert performs no network requests.
-4. Validate fixture geometry, coordinates, directions, credits, output syntax,
-   caching and error handling with offline pytest tests and mocked HTTP only.
-5. Document setup, library import, limitations and upstream credits. Do not
-   claim full KiCad import validation without an available KiCad parser.
+The client fetches one component at a time and preserves response bytes.
+Workflow orchestration resolves cached footprint data, then the converter builds
+symbol, footprint and attribution text in memory. Complete output is staged,
+optionally checked with native KiCad, and published with rollback metadata.
+Cached conversion passes no client to the footprint resolver and stays offline.
+
+For module responsibilities, formatting and development commands, see
+[CONTRIBUTING.md](../CONTRIBUTING.md). Historical audit results are kept separately
+in [FINAL_AUDIT.md](FINAL_AUDIT.md) and [PR_FOLLOWUP.md](PR_FOLLOWUP.md).
 
 ## CLI portability and validation
 

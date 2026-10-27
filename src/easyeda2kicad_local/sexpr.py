@@ -1,4 +1,5 @@
 """Small strict reader for the generated KiCad subset (no model interpretation)."""
+
 import json
 import re
 
@@ -6,6 +7,7 @@ TOKEN = re.compile(r'\s*(\(|\)|"(?:\\.|[^"\\])*"|[^\s()"]+)')
 
 
 def loads(text):
+    """Read exactly one complete expression, respecting quoted and escaped text."""
     stack, root, offset = [], None, 0
     while offset < len(text):
         if not text[offset:].strip():
@@ -41,10 +43,13 @@ def children(node, kind):
 
 
 def contains(node, kind):
-    return node[0] == kind or any(contains(part, kind) for part in node if isinstance(part, list) and part)
+    return node[0] == kind or any(
+        contains(part, kind) for part in node if isinstance(part, list) and part
+    )
 
 
 def descendants(node, kind):
+    """Walk nested units/primitives without treating quoted strings as records."""
     if node and node[0] == kind:
         yield node
     for part in node:

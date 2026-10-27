@@ -1,4 +1,11 @@
-"""Stage-and-publish bookkeeping with rollback and next-run crash recovery."""
+"""Recoverable publication of a component's libraries and source files.
+
+The pending journal identifies an unfinished replacement and its backups.
+Completion metadata is installed last, but readers must also reject a pending
+journal: several file replacements cannot form an atomic directory transaction.
+Only the single-writer workflow is supported; see docs/API_NOTES.md.
+"""
+
 import hashlib
 import json
 import logging
@@ -21,6 +28,7 @@ def digest(path):
 
 
 def local_path(folder, relative):
+    """Resolve an artifact path without trusting traversal or symlink metadata."""
     path = Path(relative)
     if path.is_absolute() or not path.parts or any(p in ('.', '..') for p in path.parts):
         raise ValueError('unsafe conversion manifest path')
@@ -32,10 +40,16 @@ def local_path(folder, relative):
 
 
 def footprint_has_model(path):
+    """Detect an actual model node, ignoring the same word inside quoted text."""
     return contains(loads(path.read_text(encoding='utf-8')), 'model')
 
 
 def source_counts(folder):
+    """Count expected electrical records to catch incomplete legacy exports.
+
+    KiCad represents source PAD, VIA and HOLE records as pads. Counts preserve
+    duplicate pins and do not require one-to-one symbol/footprint numbering.
+    """
     raw = folder / 'raw.json'
     if not raw.exists():
         return None
@@ -57,7 +71,9 @@ def source_counts(folder):
 
 
 def valid_library(path, symbol=False, expected=None):
+    """Check essential structure; native format acceptance needs --validate."""
     tree = loads(path.read_text(encoding='utf-8'))
+
     def numeric(node, kind, counts):
         fields = children(node, kind)
         if len(fields) != 1:
@@ -66,6 +82,7 @@ def valid_library(path, symbol=False, expected=None):
         if len(values) not in counts or not all(math.isfinite(v) for v in values):
             raise ValueError(f'invalid {kind}')
         return values
+
     if symbol:
         pins = list(descendants(tree, 'pin'))
         if expected is not None and len(pins) != expected:
@@ -103,7 +120,10 @@ def libraries_complete(folder):
             if data['version'] != 1 or not isinstance(data['files'], dict):
                 return False
             paths = [local_path(folder, name) for name in data['files']]
-            if not all(p.is_file() and digest(p) == data['files'][p.relative_to(folder).as_posix()] for p in paths):
+            if not all(
+                p.is_file() and digest(p) == data['files'][p.relative_to(folder).as_posix()]
+                for p in paths
+            ):
                 return False
             symbols = [p for p in paths if p.suffix == '.kicad_sym']
             footprints = [p for p in paths if p.suffix == '.kicad_mod']
@@ -112,9 +132,11 @@ def libraries_complete(folder):
             footprints = list(folder.glob('*.pretty/*.kicad_mod'))
             if any(not s.with_suffix('.pretty').is_dir() for s in symbols):
                 return False
-        return (bool(symbols and footprints)
-                and all(valid_library(p, True, counts[0] if counts else None) for p in symbols)
-                and all(valid_library(p, False, counts[1] if counts else None) for p in footprints))
+        return (
+            bool(symbols and footprints)
+            and all(valid_library(p, True, counts[0] if counts else None) for p in symbols)
+            and all(valid_library(p, False, counts[1] if counts else None) for p in footprints)
+        )
     except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
         return False
 
@@ -126,10 +148,15 @@ def recover(folder):
         return
     data = json.loads(journal.read_bytes())
     backup_name = data['backup']
-    if (data['version'] != 1 or not backup_name.startswith('.ee2kicad-backup-')
-            or Path(backup_name).name != backup_name):
+    if (
+        data['version'] != 1
+        or not backup_name.startswith('.ee2kicad-backup-')
+        or Path(backup_name).name != backup_name
+    ):
         raise ValueError('invalid recovery journal; preserve this folder and inspect it manually')
     backup = local_path(folder, backup_name)
+    # Keep the journal until every original has been restored. A second failure
+    # can then retry recovery with the same backups on the next normal run.
     for entry in data['paths']:
         target = local_path(folder, entry['path'])
         saved = local_path(backup, entry['path'])
@@ -169,14 +196,21 @@ def publish(stage, folder, paths):
                 saved = backup / relative
                 saved.parent.mkdir(parents=True, exist_ok=True)
                 atomic_write(saved, target.read_bytes())
-        atomic_write(folder / PENDING, json.dumps({'version': 1, 'backup': backup.name,
-                                                 'stage': stage.name, 'paths': entries}))
+        # Backups must be complete before the journal permits any replacement.
+        atomic_write(
+            folder / PENDING,
+            json.dumps(
+                {'version': 1, 'backup': backup.name, 'stage': stage.name, 'paths': entries}
+            ),
+        )
         for relative in paths:
             target = local_path(folder, relative)
             target.parent.mkdir(parents=True, exist_ok=True)
             os.replace(stage / relative, target)
         (folder / PENDING).unlink()
     except BaseException:
+        # KeyboardInterrupt/SystemExit need rollback too; recovery must not
+        # depend solely on ordinary per-component Exception handling.
         if (folder / PENDING).exists():
             recover(folder)
         raise
@@ -187,5 +221,12 @@ def publish(stage, folder, paths):
 
 
 def write_manifest(stage, paths, uuid):
-    atomic_write(stage / COMPLETE, json.dumps({'version': 1, 'uuid': uuid,
-                 'files': {path: digest(stage / path) for path in paths}}, sort_keys=True) + '\n')
+    """Hash staged bytes so later cache checks detect edits and missing files."""
+    atomic_write(
+        stage / COMPLETE,
+        json.dumps(
+            {'version': 1, 'uuid': uuid, 'files': {path: digest(stage / path) for path in paths}},
+            sort_keys=True,
+        )
+        + '\n',
+    )

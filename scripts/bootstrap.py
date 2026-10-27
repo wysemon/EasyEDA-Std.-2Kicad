@@ -1,4 +1,5 @@
 """Shared, stdlib-only setup refresh used before the package is installed."""
+
 import hashlib
 import subprocess
 import sys
@@ -6,6 +7,7 @@ from pathlib import Path
 
 
 def ensure_installed(root):
+    """Refresh an editable install only when its dependency declaration changes."""
     marker = root / '.venv' / '.ee2kicad-ready'
     try:
         digest = hashlib.sha256((root / 'pyproject.toml').read_bytes()).hexdigest()
@@ -17,8 +19,13 @@ def ensure_installed(root):
             return 0
         result = subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', str(root)], cwd=root)
         if result.returncode:
-            print('Setup failed; check your internet connection and Python/pip installation, then retry.', file=sys.stderr)
+            print(
+                'Setup failed; check your internet connection and Python/pip installation, then retry.',
+                file=sys.stderr,
+            )
             return 1
+        # A failed install leaves the old marker intact, so the next launch
+        # retries setup rather than mistaking a partial install for readiness.
         marker.write_text(digest + '\n', encoding='ascii')
     except OSError as e:
         print(f'Setup failed: {e}; check checkout permissions and retry.', file=sys.stderr)

@@ -1,4 +1,5 @@
 """Offline regressions for the cache, pacing, portability and export review."""
+
 import hashlib
 import json
 import runpy
@@ -26,7 +27,9 @@ ensure_installed = BOOTSTRAP['ensure_installed']
 
 
 @pytest.mark.parametrize('partial', ['raw', 'symbol', 'footprint', 'empty-pretty'])
-def test_partial_libraries_reconvert_without_network(response, tmp_path, monkeypatch, caplog, partial):
+def test_partial_libraries_reconvert_without_network(
+    response, tmp_path, monkeypatch, caplog, partial
+):
     folder, raw = install_cache(tmp_path, response)
     if partial == 'symbol':
         (folder / 'partial.kicad_sym').write_text('partial')
@@ -35,8 +38,10 @@ def test_partial_libraries_reconvert_without_network(response, tmp_path, monkeyp
         pretty.mkdir()
         if partial == 'footprint':
             (pretty / 'partial.kicad_mod').write_text('partial')
+
     def forbidden(*args, **kwargs):
         pytest.fail('No network operation is allowed for a cached component')
+
     monkeypatch.setattr(EasyEDAClient, 'request', forbidden)
     monkeypatch.setattr(EasyEDAClient, 'component', forbidden)
     caplog.set_level('INFO')
@@ -58,10 +63,12 @@ def test_attribute_error_fails_only_one_item(tmp_path, monkeypatch, capsys):
     for uuid in (OLD, NEW):
         install_cache(tmp_path, json.loads((FIXTURES / f'{uuid}.json').read_bytes()))
     original = workflow.write_conversion
+
     def malformed(data, *args, **kwargs):
         if data['result']['uuid'] == OLD:
             raise AttributeError('injected malformed component')
         return original(data, *args, **kwargs)
+
     monkeypatch.setattr(workflow, 'write_conversion', malformed)
     assert workflow.run_items([OLD, NEW], tmp_path) == 1
     assert '1 succeeded, 1 failed, 0 skipped' in capsys.readouterr().out
@@ -76,23 +83,26 @@ def test_delay_minimum_cli(delay):
     assert result.exit_code != 0 and '1' in result.output
 
 
-@pytest.mark.parametrize('delay', [0., .99, -1., float('nan'), float('inf')])
+@pytest.mark.parametrize('delay', [0.0, 0.99, -1.0, float('nan'), float('inf')])
 def test_delay_minimum_client(delay):
     with pytest.raises(ValueError, match='at least 1 second'):
         EasyEDAClient(delay)
 
 
 def test_delay_one_second_is_valid():
-    with EasyEDAClient(1.) as client:
-        assert client.delay == 1.
+    with EasyEDAClient(1.0) as client:
+        assert client.delay == 1.0
 
 
-@pytest.mark.parametrize('compact,spaced', [
-    ('M0 0a5 5 0 01 5 5', 'M0 0a5 5 0 0 1 5 5'),
-    ('M0 0A5 5 0 015 5', 'M0 0A5 5 0 0 1 5 5'),
-    ('M0 0a5 5 0 10-5-5', 'M0 0a5 5 0 1 0 -5 -5'),
-    ('M0 0a5 5 0 01 5 5 5 5 0 10-5-5', 'M0 0a5 5 0 0 1 5 5 5 5 0 1 0 -5 -5'),
-])
+@pytest.mark.parametrize(
+    'compact,spaced',
+    [
+        ('M0 0a5 5 0 01 5 5', 'M0 0a5 5 0 0 1 5 5'),
+        ('M0 0A5 5 0 015 5', 'M0 0A5 5 0 0 1 5 5'),
+        ('M0 0a5 5 0 10-5-5', 'M0 0a5 5 0 1 0 -5 -5'),
+        ('M0 0a5 5 0 01 5 5 5 5 0 10-5-5', 'M0 0a5 5 0 0 1 5 5 5 5 0 1 0 -5 -5'),
+    ],
+)
 def test_compact_arc_flags(compact, spaced):
     assert list(path_segments(compact)) == list(path_segments(spaced))
 
@@ -103,12 +113,14 @@ def test_invalid_arc_flag(path):
         list(path_segments(path))
 
 
-@pytest.mark.parametrize('retry', ['9999', 'inf', format_datetime(datetime.now(timezone.utc) + timedelta(hours=1))])
+@pytest.mark.parametrize(
+    'retry', ['9999', 'inf', format_datetime(datetime.now(timezone.utc) + timedelta(hours=1))]
+)
 def test_retry_after_cap(retry, caplog):
     client, clock, calls = make_client([503, 200], {'Retry-After': retry})
     with client:
         client.component(NEW)
-    assert clock.sleeps == [0., 300.]
+    assert clock.sleeps == [0.0, 300.0]
     messages = [record.getMessage() for record in caplog.records if 'capped' in record.getMessage()]
     assert messages == ['Retry-After exceeds 300 seconds; capped at 300 seconds.']
 
@@ -124,7 +136,10 @@ def test_caller_relative_paths(monkeypatch, tmp_path, cached):
     monkeypatch.setenv('EE2KICAD_CWD', str(caller))
     calls = []
     monkeypatch.setattr(workflow.EasyEDAClient, 'component', lambda *a: pytest.fail('offline'))
-    monkeypatch.setattr('easyeda2kicad_local.cli.run_items', lambda items, root, **kwargs: calls.append((items, root)) or 0)
+    monkeypatch.setattr(
+        'easyeda2kicad_local.cli.run_items',
+        lambda items, root, **kwargs: calls.append((items, root)) or 0,
+    )
     args = ['convert', NEW] if cached else ['fetch', '--file', '../links.txt']
     args += ['--output', '../result']
     assert invoke_main(monkeypatch, args) == 0
@@ -140,7 +155,10 @@ def test_caller_default_file_and_output(monkeypatch, tmp_path):
     monkeypatch.chdir(checkout)
     monkeypatch.setenv('EE2KICAD_CWD', str(caller))
     calls = []
-    monkeypatch.setattr('easyeda2kicad_local.cli.run_items', lambda items, root, **kwargs: calls.append((items, root)) or 0)
+    monkeypatch.setattr(
+        'easyeda2kicad_local.cli.run_items',
+        lambda items, root, **kwargs: calls.append((items, root)) or 0,
+    )
     assert invoke_main(monkeypatch, [], '\n') == 0
     assert calls == [([NEW], caller / 'output')]
 
@@ -152,16 +170,26 @@ def test_bootstrap_hash_refresh_and_failed_install(tmp_path, monkeypatch):
     marker = tmp_path / '.venv/.ee2kicad-ready'
     marker.write_text('')  # Old marker format also triggers refresh.
     calls = []
-    monkeypatch.setattr(BOOTSTRAP['subprocess'], 'run', lambda cmd, **kw: calls.append(cmd) or SimpleNamespace(returncode=0))
+    monkeypatch.setattr(
+        BOOTSTRAP['subprocess'],
+        'run',
+        lambda cmd, **kw: calls.append(cmd) or SimpleNamespace(returncode=0),
+    )
     assert ensure_installed(tmp_path) == 0
     assert marker.read_text().strip() == hashlib.sha256(project.read_bytes()).hexdigest()
     assert ensure_installed(tmp_path) == 0 and len(calls) == 1
     previous = marker.read_bytes()
     project.write_text('[project]\nname="second"\n')
-    monkeypatch.setattr(BOOTSTRAP['subprocess'], 'run', lambda cmd, **kw: SimpleNamespace(returncode=1))
+    monkeypatch.setattr(
+        BOOTSTRAP['subprocess'], 'run', lambda cmd, **kw: SimpleNamespace(returncode=1)
+    )
     assert ensure_installed(tmp_path) == 1
     assert marker.read_bytes() == previous
-    monkeypatch.setattr(BOOTSTRAP['subprocess'], 'run', lambda cmd, **kw: calls.append(cmd) or SimpleNamespace(returncode=0))
+    monkeypatch.setattr(
+        BOOTSTRAP['subprocess'],
+        'run',
+        lambda cmd, **kw: calls.append(cmd) or SimpleNamespace(returncode=0),
+    )
     assert ensure_installed(tmp_path) == 0 and len(calls) == 2
     assert marker.read_text().strip() == hashlib.sha256(project.read_bytes()).hexdigest()
 
@@ -190,34 +218,47 @@ def test_modern_footprint_properties_and_text_size(response):
     drawing = texts(converted.symbol)
     assert drawing
     for text in drawing:
-        assert list(map(float, one(one(one(text, 'effects'), 'font'), 'size')[1:])) == [1.905, 1.905]
-    source_text = [line.split('~') for line in response['result']['packageDetail']['dataStr']['shape']
-                   if line.startswith('TEXT~')]
+        assert list(map(float, one(one(one(text, 'effects'), 'font'), 'size')[1:])) == [
+            1.905,
+            1.905,
+        ]
+    source_text = [
+        line.split('~')
+        for line in response['result']['packageDetail']['dataStr']['shape']
+        if line.startswith('TEXT~')
+    ]
     exported_text = children(fp, 'fp_text')
     assert len(source_text) == len(exported_text) > 0
     for source, text in zip(source_text, exported_text):
         assert text[2] == source[10]
         size = list(map(float, one(one(one(text, 'effects'), 'font'), 'size')[1:]))
-        assert size == pytest.approx([float(source[9]) * .254] * 2)
+        assert size == pytest.approx([float(source[9]) * 0.254] * 2)
     # Both pin-name and pin-number fonts retain their original property size.
     for unit in children(one(sexpr(converted.symbol), 'symbol'), 'symbol'):
         for pin in children(unit, 'pin'):
             for key in ('name', 'number'):
-                assert list(map(float, one(one(one(one(pin, key), 'effects'), 'font'), 'size')[1:])) == [1.27, 1.27]
+                assert list(
+                    map(float, one(one(one(one(pin, key), 'effects'), 'font'), 'size')[1:])
+                ) == [1.27, 1.27]
 
 
 def test_rotation_slot_verification_is_documented(response):
-    pads = [line.split('~') for line in response['result']['packageDetail']['dataStr']['shape']
-            if line.startswith('PAD~')]
+    pads = [
+        line.split('~')
+        for line in response['result']['packageDetail']['dataStr']['shape']
+        if line.startswith('PAD~')
+    ]
     assert pads
     assert all(abs(float(p[4]) - float(p[5])) < 1e-6 for p in pads)
-    assert all(float(p[13]) - 2 * float(p[9]) <= .0011 for p in pads)
+    assert all(float(p[13]) - 2 * float(p[9]) <= 0.0011 for p in pads)
     notes = (Path(__file__).parents[1] / 'docs/API_NOTES.md').read_text()
     assert 'rotation sign and slot orientation remain unverified' in notes
 
 
-@pytest.mark.parametrize('source,expected', [('3pt', 1.058333), ('5.4pt', 1.905), ('9pt', 1.905),
-                                           ('', 1.905), ('undefined', 1.905)])
+@pytest.mark.parametrize(
+    'source,expected',
+    [('3pt', 1.058333), ('5.4pt', 1.905), ('9pt', 1.905), ('', 1.905), ('undefined', 1.905)],
+)
 def test_symbol_graphic_text_cap_preserves_smaller_sizes(response, source, expected):
     for index, raw in enumerate(response['result']['dataStr']['shape']):
         if raw.startswith('T~'):
@@ -231,8 +272,9 @@ def test_symbol_graphic_text_cap_preserves_smaller_sizes(response, source, expec
         assert actual == pytest.approx([expected, expected], abs=1e-6)
 
 
-@pytest.mark.parametrize('source,expected', [('3.2', .8128), ('5', 1.27), ('10', 2.54),
-                                           ('', 1.27), ('undefined', 1.27)])
+@pytest.mark.parametrize(
+    'source,expected', [('3.2', 0.8128), ('5', 1.27), ('10', 2.54), ('', 1.27), ('undefined', 1.27)]
+)
 def test_footprint_drawing_text_preserves_source_sizes_without_cap(response, source, expected):
     data = response['result']['packageDetail']['dataStr']
     for index, raw in enumerate(data['shape']):

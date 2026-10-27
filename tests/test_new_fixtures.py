@@ -41,8 +41,8 @@ def test_hidden_properties_below_drawing(uuid):
     assert len(set(positions)) == len(hidden)
     bbox = data['result']['dataStr']['BBox']
     head = data['result']['dataStr']['head']
-    bottom = (head['y'] - bbox['y'] - bbox['height']) * .254
-    assert all(y + .635 < min(bottom, *(p.y for p in c.pins)) for _, y in positions)
+    bottom = (head['y'] - bbox['y'] - bbox['height']) * 0.254
+    assert all(y + 0.635 < min(bottom, *(p.y for p in c.pins)) for _, y in positions)
     assert len({x for x, y in positions}) == 1
     assert all(a[1] - b[1] == pytest.approx(1.27) for a, b in zip(positions, positions[1:]))
     assert all(one(one(p, 'effects'), 'justify') == ['justify', 'left'] for p in hidden)
@@ -62,12 +62,18 @@ def test_sx_pin_name_flag_numbers_and_author_text():
     assert source_pin.name == 'GND' and not source_pin.name_visible
     properties = {p[1]: p[2] for p in children(one(sexpr(c.symbol), 'symbol'), 'property')}
     assert json.loads(properties['EasyEDA Hidden Pin Names']) == [{'number': '2', 'name': 'GND'}]
-    pins = [p for unit in children(one(sexpr(c.symbol), 'symbol'), 'symbol') for p in children(unit, 'pin')]
+    pins = [
+        p
+        for unit in children(one(sexpr(c.symbol), 'symbol'), 'symbol')
+        for p in children(unit, 'pin')
+    ]
     assert len(pins) == 4
     for pin in pins:
         number = one(pin, 'number')
         assert 'hide' not in one(number, 'effects')
-        assert one(pin, 'name')[1] == ('~' if number[1] == '2' else {'1': 'GND', '3': 'OUT', '4': 'Vin'}[number[1]])
+        assert one(pin, 'name')[1] == (
+            '~' if number[1] == '2' else {'1': 'GND', '3': 'OUT', '4': 'Vin'}[number[1]]
+        )
         assert 'hide' not in one(one(pin, 'name'), 'effects')
     assert [t[1] for t in texts(c.symbol)].count('GND') == 2
     assert {'Vin', 'OUT'} <= {t[1] for t in texts(c.symbol)}
@@ -109,21 +115,33 @@ def test_sx_hidden_name_survives_kicad_save_and_is_not_rendered(tmp_path):
         location = tmp_path / key.lower()
         location.mkdir()
         env[key] = str(location)
-    upgrade = subprocess.run([executable, 'sym', 'upgrade', '--force', str(source)],
-                             env=env, capture_output=True, text=True, timeout=30)
+    upgrade = subprocess.run(
+        [executable, 'sym', 'upgrade', '--force', str(source)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     assert upgrade.returncode == 0, upgrade.stdout + upgrade.stderr
     symbol = one(sexpr(source.read_text()), 'symbol')
     pins = [pin for unit in children(symbol, 'symbol') for pin in children(unit, 'pin')]
     hidden = next(pin for pin in pins if one(pin, 'number')[1] == '2')
     assert one(hidden, 'name')[1] == '~'
     assert 'hide' not in one(one(hidden, 'number'), 'effects')
-    metadata = next(prop for prop in children(symbol, 'property') if prop[1] == 'EasyEDA Hidden Pin Names')
+    metadata = next(
+        prop for prop in children(symbol, 'property') if prop[1] == 'EasyEDA Hidden Pin Names'
+    )
     assert json.loads(metadata[2]) == [{'number': '2', 'name': 'GND'}]
     effects = one(metadata, 'effects')
     assert 'hide' in effects or ['hide', 'yes'] in effects
     svg_dir = tmp_path / 'svg'
-    export = subprocess.run([executable, 'sym', 'export', 'svg', '--output', str(svg_dir), str(source)],
-                            env=env, capture_output=True, text=True, timeout=30)
+    export = subprocess.run(
+        [executable, 'sym', 'export', 'svg', '--output', str(svg_dir), str(source)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     assert export.returncode == 0, export.stdout + export.stderr
     svg = ET.parse(next(svg_dir.glob('*.svg')))
     labels = [node.text for node in svg.iter() if node.tag.rsplit('}', 1)[-1] == 'text']
