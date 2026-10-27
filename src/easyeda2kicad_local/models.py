@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import json
 
-from .converter import num
+from .shared import num
 from .client import UUID
 
 

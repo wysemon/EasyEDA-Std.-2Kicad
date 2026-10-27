@@ -1,0 +1,193 @@
+"""EasyEDA symbol pins, geometry, layout and KiCad library serialization."""
+from dataclasses import dataclass
+import json
+import logging
+import math
+import re
+
+from .credits import owner
+from .geometry import numbers, path_segments
+from .shared import UNIT, effects, f, fill, num, poly, prefix, q, short_description, stroke, svg_graphics
+
+log = logging.getLogger(__name__)
+SYMBOL_TEXT_SIZE_CAP = 75 * .0254
+
+
+@dataclass
+class Pin:
+    number: str
+    name: str
+    x: float
+    y: float
+    angle: int
+    length: float
+    electrical: str
+    style: str = 'line'
+    name_visible: bool = True
+
+    def render(self):
+        return (f'(pin {self.electrical} {self.style} (at {f(self.x)} {f(self.y)} {self.angle}) '
+                f'(length {f(self.length)}) (name {q(self.name)} {effects(hidden=not self.name_visible)}) '
+                f'(number {q(self.number)} {effects()}))')
+
+
+
+def parse_pin(raw, coords):
+    sections = [s.split('~') for s in raw.split('^^')]
+    main = sections[0]
+    segments = list(path_segments(sections[2][0]))
+    if len(segments) != 1 or segments[0][0] != 'line':
+        raise ValueError('pin path must be one straight segment')
+    start, end = segments[0][1]
+    x, y = coords.point(*start)
+    ex, ey = coords.point(*end)
+    dx, dy = ex - x, ey - y
+    if abs(dx) > 1e-6 and abs(dy) > 1e-6:
+        raise ValueError('nonorthogonal pin')
+    length = math.hypot(dx, dy)
+    if length <= 0:
+        raise ValueError('zero-length pin')
+    angle = round(math.degrees(math.atan2(dy, dx))) % 360
+    name, number = sections[3][4], sections[4][4] or main[3]
+    electrical = {'0': 'unspecified', '1': 'input', '2': 'output',
+                  '3': 'bidirectional', '4': 'power_in'}.get(main[2], 'unspecified')
+    inverted = len(sections) > 5 and sections[5][0] == '1'
+    clock = len(sections) > 6 and sections[6][0] == '1'
+    style = 'inverted_clock' if inverted and clock else 'inverted' if inverted else 'clock' if clock else 'line'
+    return Pin(number, name, x, y, angle, length, electrical, style, sections[3][0] != '0')
+
+
+
+def symbol_text_angle(value):
+    # Stock SSM2018 graphic text: 900 = 90 degrees; property angles use 90.
+    # Reflect the EasyEDA Y-down orientation into symbol Y-up before scaling.
+    return f'{(-num(value) % 360) * 10:g}'
+
+
+
+def symbol_graphic(raw, coords):
+    t = raw.split('~')
+    kind = t[0]
+    if kind == 'R':
+        x, y = num(t[1]), num(t[2])
+        return [f'(rectangle (start {coords.xy(x, y)}) (end {coords.xy(x + num(t[5]), y + num(t[6]))}) '
+                f'{stroke(num(t[8], 1) * UNIT)} {fill(t[10])})']
+    if kind in ('E', 'C'):
+        x, y, rx = num(t[1]), num(t[2]), num(t[3])
+        ry = num(t[4], rx) if kind == 'E' else rx
+        if rx != ry:
+            pts = [coords.point(x + rx * math.cos(i * math.pi / 32), y + ry * math.sin(i * math.pi / 32)) for i in range(65)]
+            return [poly(pts, .254, True)]
+        wi, fi = (6, 8) if kind == 'E' else (5, 7)
+        return [f'(circle (center {coords.xy(x, y)}) (radius {f(rx * UNIT)}) {stroke(num(t[wi], 1) * UNIT)} {fill(t[fi])})']
+    if kind == 'T':
+        size = min(num(t[7], 9) * 25.4 / 72, SYMBOL_TEXT_SIZE_CAP)
+        return [f'(text {q(t[12])} (at {coords.xy(t[2], t[3])} {symbol_text_angle(t[4])}) '
+                f'{effects(size)})']
+    if kind in ('PL', 'PG'):
+        ns = numbers(t[1])
+        points = [coords.point(x, y) for x, y in zip(ns[::2], ns[1::2])]
+        if kind == 'PG' and points:
+            points.append(points[0])
+        return [poly(points, num(t[3], 1) * UNIT, True, solid=kind == 'PG')]
+    if kind in ('PT', 'A'):
+        return svg_graphics(t[1], coords, num(t[3], 1) * UNIT, True)
+    raise ValueError(f'unsupported symbol element {kind}')
+
+
+
+def symbol_label_position(data, coords, graphics, pins, below=False):
+    """Center over body geometry; clear the entire converted drawing and pins.
+
+    Generated primitives are already in KiCad mm. The source BBox is included
+    as an extra guard, but geometry still works when BBox is missing or stale.
+    Text uses a conservative one-em-per-character envelope, not just its anchor.
+    """
+    body, outer = [], []
+    for graphic in graphics:
+        points = [] if graphic.startswith('(text ') else [
+            tuple(numbers(point)) for point in
+            re.findall(r'\((?:start|end|mid|xy|center) ([^)]*)\)', graphic)]
+        if graphic.startswith('(circle '):
+            x, y = points[0]
+            radius = num(re.search(r'\(radius ([^)]*)\)', graphic)[1])
+            points = [(x - radius, y - radius), (x + radius, y + radius)]
+        elif graphic.startswith('(arc '):
+            # Use its full circumcircle as a conservative envelope.
+            (ax, ay), (bx, by), (cx, cy) = points
+            d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+            if abs(d) > 1e-12:
+                aa, bb, cc = ax * ax + ay * ay, bx * bx + by * by, cx * cx + cy * cy
+                x = (aa * (by - cy) + bb * (cy - ay) + cc * (ay - by)) / d
+                y = (aa * (cx - bx) + bb * (ax - cx) + cc * (bx - ax)) / d
+                radius = math.hypot(ax - x, ay - y)
+                points = [(x - radius, y - radius), (x + radius, y + radius)]
+        body.extend(points)
+        outer.extend(points)
+        if graphic.startswith('(text '):
+            match = re.search(r'^\(text ("(?:\\.|[^"\\])*") \(at ([^)]*)\).*?\(size ([^)]*)\)', graphic)
+            text = json.loads(match[1], strict=False)
+            x, y, angle = numbers(match[2])
+            width, height = numbers(match[3])
+            lines = text.splitlines() or ['']
+            half_width = max(map(len, lines)) * width / 2
+            half_height = len(lines) * height * .75
+            a = math.radians(angle / 10)
+            dx = abs(half_width * math.cos(a)) + abs(half_height * math.sin(a))
+            dy = abs(half_width * math.sin(a)) + abs(half_height * math.cos(a))
+            outer.extend([(x - dx, y - dy), (x + dx, y + dy)])
+    for pin in pins:
+        a = math.radians(pin.angle)
+        outer.extend([(pin.x, pin.y),
+                      (pin.x + pin.length * math.cos(a), pin.y + pin.length * math.sin(a))])
+    box = data.get('BBox') or {}
+    if box:
+        outer.extend([coords.point(box['x'], box['y']),
+                      coords.point(num(box['x']) + num(box['width']), num(box['y']) + num(box['height']))])
+    centered = body or outer
+    center = (min(x for x, _ in centered) + max(x for x, _ in centered)) / 2
+    if below:
+        return min(x for x, _ in centered), min(y for _, y in outer) - 2.54
+    top = max(y for _, y in outer)
+    return center, top + 2.54
+
+
+
+def unit_one(data):
+    if 'subparts' not in data:
+        return data
+    log.warning('Multi-unit symbol: converting unit 1 only; subparts format is unverified')
+    parts = data['subparts']
+    if data.get('shape'):
+        return data
+    if isinstance(parts, list) and parts and isinstance(parts[0], dict) and 'shape' in parts[0]:
+        return {**data, 'shape': parts[0]['shape']}
+    raise ValueError('unrecognized subparts layout; cannot locate unit 1')
+
+
+
+def render_symbol(result, data, name, sc, sg, pins):
+    para = data['head'].get('c_para') or {}
+    source = f'https://easyeda.com/component/{result["uuid"]}'
+    properties = {'Reference': prefix(para.get('pre')), 'Value': result.get('title', name),
+                  'Footprint': f'{name}:{name}', 'Datasheet': para.get('link') or '',
+                  'Description': short_description(result.get('description') or ''), 'Author': owner(result),
+                  'Source': source, 'EasyEDA UUID': result['uuid']}
+    center, value_y = symbol_label_position(data, sc, sg, pins)
+    # Property angles are degrees; graphic text above uses deci-degrees.
+    positions = {'Reference': (center, value_y + 2.54), 'Value': (center, value_y)}
+    hidden_x, hidden_y = symbol_label_position(data, sc, sg, pins, below=True)
+    rows = []
+    for key, value in properties.items():
+        hidden = key not in positions
+        x, y = (hidden_x, hidden_y) if hidden else positions[key]
+        rows.append(f'(property {q(key)} {q(value)} (at {f(x)} {f(y)} 0) '
+                    f'{effects(hidden=hidden, justify="left" if hidden else None)})')
+        if hidden:
+            hidden_y -= 1.27
+    props = '\n'.join(rows)
+    symbol = (f'(kicad_symbol_lib (version 20231120) (generator "easyeda2kicad-local")\n'
+              f'(symbol {q(name)} (pin_names (offset 0.508)) (in_bom yes) (on_board yes)\n{props}\n'
+              f'(symbol {q(name + "_0_1")}\n' + '\n'.join(sg) + ')\n'
+              f'(symbol {q(name + "_1_1")}\n' + '\n'.join(p.render() for p in pins) + ')\n))\n')
+    return symbol
