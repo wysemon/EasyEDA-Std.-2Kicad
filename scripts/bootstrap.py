@@ -1,8 +1,8 @@
 """Shared, stdlib-only setup refresh used before the package is installed."""
 import hashlib
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def ensure_installed(root):

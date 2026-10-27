@@ -2,10 +2,10 @@ import io
 import sys
 
 import pytest
+from conftest import NEW, OLD
+from test_workflow import install_cache
 
 from easyeda2kicad_local import cli
-from test_workflow import install_cache
-from conftest import NEW, OLD
 
 
 def invoke_main(monkeypatch, args, stdin=''):
@@ -65,8 +65,8 @@ def test_alias_entrypoint_dispatch(monkeypatch, args, cached):
 
 
 def test_alias_declared():
-    from pathlib import Path
     import tomllib
+    from pathlib import Path
     config = tomllib.loads((Path(__file__).parents[1] / 'pyproject.toml').read_text())
     assert config['project']['scripts']['ee2kicad'] == 'easyeda2kicad_local.cli:main'
 
@@ -142,3 +142,9 @@ def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert '输出' in result.stdout and '1 succeeded' in result.stdout
     assert '作者' in (folder / 'CREDITS.txt').read_text(encoding='utf-8')
+
+
+def test_version_entrypoint(monkeypatch, capsys):
+    from easyeda2kicad_local import __version__
+    assert invoke_main(monkeypatch, ['--version']) == 0
+    assert capsys.readouterr().out.strip() == f'easyeda2kicad-local {__version__}'

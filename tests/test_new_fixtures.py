@@ -2,12 +2,12 @@ import json
 from pathlib import Path
 
 import pytest
+from test_symbol_layout import children, one, sexpr, texts
+from test_validation import validate_libraries
 
 from easyeda2kicad_local.converter import convert_response, write_conversion
 from easyeda2kicad_local.models import parse_svgnode
 from easyeda2kicad_local.workflow import experimental_model
-from test_symbol_layout import children, one, sexpr, texts
-from test_validation import validate_libraries
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 OLED = '6c69c66aa27f4c50aceb6e8226ef8d27'

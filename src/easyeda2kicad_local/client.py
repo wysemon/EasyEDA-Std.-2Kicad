@@ -1,11 +1,11 @@
 """Sequential, paced public-component access with no third-party destinations."""
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 import logging
 import math
 import random
 import re
 import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from urllib.parse import urlsplit
 
 import httpx

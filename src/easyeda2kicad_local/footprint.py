@@ -1,6 +1,6 @@
 """EasyEDA pad/footprint parsing and KiCad footprint serialization."""
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from .geometry import numbers
 from .shared import UNIT, effects, f, num, q, stroke, svg_graphics

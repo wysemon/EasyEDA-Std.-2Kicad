@@ -5,7 +5,7 @@ import math
 import re
 import unicodedata
 
-from .geometry import numbers, path_segments
+from .geometry import path_segments
 
 log = logging.getLogger(__name__)
 UNIT = .254

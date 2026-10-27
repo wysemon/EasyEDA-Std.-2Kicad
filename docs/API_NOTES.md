@@ -56,7 +56,7 @@ sampled as polylines and reported. No third-party conversion source is copied.
 
 ## Unverified / bounded support
 
-Only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur in these fixtures.
+In the original MAX98357A/TP4056 fixtures, only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur.
 Other documented records are implemented conservatively and must be checked
 against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE/RECT, custom polygon pads,
 slots, multilayer SMD, electrical-type mappings, pin clock/inversion, subparts.
@@ -64,7 +64,7 @@ Unsupported paths or records warn with their raw line and are skipped.
 Subparts are unverified: warn and use unit 1 only when a recognizable shape
 container is supplied; do not guess unrecognized layouts.
 
-Neither fixture has SVGNODE or uuid_3d. The proposed modules.easyeda.com OBJ
+Neither original MAX98357A/TP4056 fixture has SVGNODE or uuid_3d; the SX1308 sample below now verifies SVGNODE attribute parsing. The proposed modules.easyeda.com OBJ
 and STEP endpoints and transforms remain unverified. Request a model-bearing
 sample before finalizing 3D. Do not invent model placement from head origins.
 

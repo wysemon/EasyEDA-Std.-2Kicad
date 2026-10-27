@@ -135,7 +135,7 @@ The app contacts only easyeda.com, plus modules.easyeda.com when `--3d` is selec
 
 ## Limitations
 
-- `--3d` is experimental. Neither fixture contains a model. STEP downloads are optional; automatic placement and relative-path attachment await a model-bearing sample. Place downloaded models manually. OBJ/WRL conversion is not implemented.
+- `--3d` is experimental. The SX1308 fixture contains a real SVGNODE and its attributes are tested. STEP downloads are optional; automatic placement and relative-path attachment remain disabled pending a KiCad 3D viewer comparison. Place downloaded models manually. OBJ/WRL conversion is not implemented.
 - Unverified record types are listed in [API notes](docs/API_NOTES.md). Unsupported records warn and are skipped. Unknown electrical types become unspecified. Multi-unit symbols warn and use unit 1 only when recognized.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
 - Pad/text rotation signs and true oval-slot orientation need a real sample to verify. Neither fixture has an asymmetric rotated pad or a true oval slot. See [API notes](docs/API_NOTES.md).
@@ -164,3 +164,6 @@ Related tools and format research:
 [JLC2KiCadLib](https://github.com/TousstNicolas/JLC2KiCadLib).
 Their source code was not incorporated. Component authors retain their rights;
 see each generated CREDITS.txt.
+
+`ee2kicad --version` prints the installed application version. Developers can
+run `.venv/bin/python -m ruff check .` (Windows: `.venv\Scripts\python -m ruff check .`).

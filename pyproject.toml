@@ -12,7 +12,7 @@ license = "MIT"
 dependencies = ["httpx>=0.27,<1", "typer>=0.12,<1", "rich>=13,<15"]
 
 [project.optional-dependencies]
-test = ["pytest>=8,<10"]
+test = ["pytest>=8,<10", "ruff>=0.11,<1"]
 
 [project.scripts]
 easyeda2kicad-local = "easyeda2kicad_local.cli:main"
@@ -23,3 +23,10 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

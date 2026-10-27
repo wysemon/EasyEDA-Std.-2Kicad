@@ -1,7 +1,7 @@
 """Per-file atomic replacement for cached source and generated artifacts."""
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 
 def atomic_write(path: Path, content: str | bytes):

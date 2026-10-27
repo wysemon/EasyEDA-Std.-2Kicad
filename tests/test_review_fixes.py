@@ -1,13 +1,18 @@
 """Offline regressions for the cache, pacing, portability and export review."""
-from datetime import datetime, timedelta, timezone
-from email.utils import format_datetime
 import hashlib
 import json
 import runpy
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conftest import FIXTURES, NEW, OLD
+from test_client import make_client
+from test_entrypoint import invoke_main
+from test_symbol_layout import children, one, sexpr, texts
+from test_workflow import install_cache
 from typer.testing import CliRunner
 
 from easyeda2kicad_local import workflow
@@ -15,11 +20,6 @@ from easyeda2kicad_local.cli import app
 from easyeda2kicad_local.client import EasyEDAClient
 from easyeda2kicad_local.converter import convert_response
 from easyeda2kicad_local.geometry import path_segments
-from test_client import make_client
-from test_entrypoint import invoke_main
-from test_symbol_layout import children, one, sexpr, texts
-from test_workflow import install_cache
-from conftest import NEW, OLD, FIXTURES
 
 BOOTSTRAP = runpy.run_path(str(Path(__file__).parents[1] / 'scripts/bootstrap.py'))
 ensure_installed = BOOTSTRAP['ensure_installed']

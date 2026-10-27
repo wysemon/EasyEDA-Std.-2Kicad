@@ -1,13 +1,13 @@
 import copy
 import json
 
+from conftest import FIXTURES
 from typer.testing import CliRunner
 
 from easyeda2kicad_local.cli import app
 from easyeda2kicad_local.client import EasyEDAClient, FetchError, StopRun
 from easyeda2kicad_local.converter import safe_name
 from easyeda2kicad_local.workflow import experimental_model, run_items
-from conftest import FIXTURES
 
 
 def install_cache(tmp_path, response):

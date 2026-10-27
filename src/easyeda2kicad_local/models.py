@@ -1,9 +1,9 @@
 """Read EasyEDA's model reference; placement remains intentionally unverified."""
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 
-from .shared import num
 from .client import UUID
+from .shared import num
 
 
 @dataclass(frozen=True)

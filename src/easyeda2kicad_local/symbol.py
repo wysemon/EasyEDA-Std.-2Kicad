@@ -1,13 +1,25 @@
 """EasyEDA symbol pins, geometry, layout and KiCad library serialization."""
-from dataclasses import dataclass
 import json
 import logging
 import math
 import re
+from dataclasses import dataclass
 
 from .credits import owner
 from .geometry import numbers, path_segments
-from .shared import UNIT, effects, f, fill, num, poly, prefix, q, short_description, stroke, svg_graphics
+from .shared import (
+    UNIT,
+    effects,
+    f,
+    fill,
+    num,
+    poly,
+    prefix,
+    q,
+    short_description,
+    stroke,
+    svg_graphics,
+)
 
 log = logging.getLogger(__name__)
 SYMBOL_TEXT_SIZE_CAP = 75 * .0254

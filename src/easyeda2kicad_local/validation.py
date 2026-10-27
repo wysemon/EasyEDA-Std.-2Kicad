@@ -1,10 +1,10 @@
 """Optional KiCad validation that never upgrades the user's generated originals."""
 import logging
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 

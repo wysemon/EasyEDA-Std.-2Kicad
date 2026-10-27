@@ -1,10 +1,10 @@
 """Offline shell bootstrap tests; native Windows execution is a separate check."""
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 

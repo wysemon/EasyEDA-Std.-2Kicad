@@ -1,8 +1,8 @@
 import httpx
 import pytest
-
-from easyeda2kicad_local.client import EasyEDAClient, FetchError, HEADERS, StopRun, parse_uuid
 from conftest import NEW
+
+from easyeda2kicad_local.client import HEADERS, EasyEDAClient, FetchError, StopRun, parse_uuid
 
 
 @pytest.mark.parametrize('text', [NEW, NEW.upper(), f'https://easyeda.com/component/{NEW}/?abc=1'])

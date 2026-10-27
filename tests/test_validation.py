@@ -1,13 +1,13 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from test_workflow import install_cache, snapshot
 
 from easyeda2kicad_local.converter import write_conversion
 from easyeda2kicad_local.validation import validate_libraries
 from easyeda2kicad_local.workflow import run_items
-from test_workflow import install_cache, snapshot
 
 
 def test_missing_kicad_one_note(monkeypatch, tmp_path, capsys):

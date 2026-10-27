@@ -1,17 +1,29 @@
 """Command-line and interactive entry points shared by all launchers."""
 import logging
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from . import __version__
 from .client import parse_uuid
 from .workflow import run_items
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False,
                   help='Convert public EasyEDA Standard components into local KiCad libraries.')
+
+
+def version_callback(value):
+    if value:
+        typer.echo(f'easyeda2kicad-local {__version__}')
+        raise typer.Exit()
+
+
+@app.callback()
+def root(version: Annotated[bool, typer.Option('--version', callback=version_callback, is_eager=True)] = False):
+    """Convert EasyEDA Standard components locally."""
 
 
 def configure_console():
@@ -74,7 +86,7 @@ def main(args=None):
             if not arguments:
                 typer.echo('No components supplied; nothing to do.')
                 return
-        if arguments[0] not in ('fetch', 'convert', '--help', '-h'):
+        if arguments[0] not in ('fetch', 'convert', '--help', '-h', '--version'):
             arguments.insert(0, 'fetch')
         program = Path(sys.argv[0]).stem
         app(args=arguments, prog_name='ee2kicad' if program == '__main__' else program)
