@@ -105,7 +105,7 @@ run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
 
 ### Caching and validation
 
-Complete, unchanged 2D libraries are skipped. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
+Complete 2D libraries are skipped. New output has a hidden completion record; older output is checked against the cached pin and pad counts. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
 
 Use `convert` after updating the app to rebuild existing output offline. For older output, add the newly generated UUID-suffixed libraries in KiCad. `--force` downloads fresh component data and overwrites generated output.
 
@@ -115,11 +115,11 @@ Use `convert` after updating the app to rebuild existing output offline. For old
 
 ### Safe updates and older output
 
-New libraries are built privately and validated before they replace anything. A completion file records their hashes. If writing or validation fails, the previous libraries stay available. After an interrupted publish, the next normal run restores the previous files and tries again. Dry runs leave your output untouched. Run only one converter process per output folder.
+New libraries are built privately and validated before they replace anything. A hidden completion record tracks the generated files. If writing or validation fails, the previous libraries stay available. After an interrupted publish, the next normal run restores the previous files. Use `convert` to rebuild again if those previous files are already complete. Dry runs leave your output untouched. Run only one converter process per output folder.
 
-Old converter-generated footprints with model references are rebuilt from their cache automatically, including older library names. No model files are deleted. You can remove unused STEP/WRL files yourself after checking that other projects do not use them. Raw JSON containing `SVGNODE` metadata is harmless and stays unchanged.
+Old converter-generated footprints with model references are rebuilt from their cache automatically, including older library names. Unassociated libraries are left alone with a manual-cleanup warning. No model files are deleted. You can remove unused STEP/WRL files yourself after checking that other projects do not use them. Raw JSON containing `SVGNODE` metadata is harmless and stays unchanged.
 
-Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uuid>`). Keep a copy of any hand-edited libraries. When a completion file reveals edits, the converter also saves those bytes in a `.previous-<hash>` file before rebuilding. Changed attribution is kept in `CREDITS.previous-<hash>.txt`. Libraries created by other tools are never overwritten.
+Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uuid>`). Keep a copy of any hand-edited libraries. Changed older libraries and detected hand edits are also saved in a `.previous-<hash>` file before rebuilding. Changed attribution is kept in `CREDITS.previous-<hash>.txt`. Libraries created by other tools are never overwritten.
 
 ### Files are relative to where you run the command
 
@@ -180,6 +180,16 @@ On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use do
 
 The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `ee2kicad --version` prints the installed version.
 
+Files target the KiCad 8/9 formats. The local audit used **KiCad 9.0.2**. CI keeps the Python 3.11/3.12 Windows/Linux matrix and adds a separate Ubuntu 24.04 job using its native KiCad package. That job requires the CLI and Python geometry bindings and prints their versions. KiCad 8 has not been executed locally; see [the audit report](docs/FINAL_AUDIT.md) for verification limits.
+
+To run just the native checks after installing KiCad:
+
+```sh
+.venv/bin/python -m pytest -m "kicad and not live"
+```
+
+Strict `--validate` checks file import, not ERC, DRC or fabrication suitability.
+
 ### Optional live smoke test
 
 `pytest -m live` opts into fetching exactly one public component through the normal paced client, including its retry/stop rules. It makes no search or footprint fallback requests and writes no output files.
@@ -195,3 +205,6 @@ Related tools and format research:
 [JLC2KiCadLib](https://github.com/TousstNicolas/JLC2KiCadLib).
 Their source code was not incorporated. Component authors retain their rights;
 see each generated CREDITS.txt.
+
+The [geometry test data](tests/fixtures/geometry/README.md) has a separate
+CC-BY-NC-SA 3.0 license and source attribution. The converter code stays MIT.

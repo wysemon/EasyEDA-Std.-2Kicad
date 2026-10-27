@@ -184,7 +184,9 @@ A cached item is complete only with usable `.kicad_sym` and
 `.pretty/*.kicad_mod` files containing pins/pads and no model references.
 New output also has `.ee2kicad-complete.json` with per-file SHA-256 hashes.
 A pending publish journal always makes output incomplete. Legacy 2D output
-without a manifest is accepted after structural checks. Incomplete libraries are rebuilt from raw cache
+without a manifest is accepted after structural and cached source-count checks.
+Legacy unit-1 outputs with nonempty subparts, or outputs missing source pins,
+pads, vias or holes, cannot silently pass this check. Incomplete libraries are rebuilt from raw cache
 without requests, including no footprint fallback. Missing
 fallback cache is an offline error; explicit `--force` allows retrieval.
 Per-item exceptions are counted/logged and processing continues, except StopRun.
@@ -229,14 +231,18 @@ artifacts and installs completion metadata last. Normal failures roll back;
 the next non-dry run recovers a journal left by process interruption. Recovery
 preserves caches and unrelated files. This is recoverable multi-file publication,
 not an atomic directory swap or a guarantee against filesystem/power failure.
-A hard kill before journaling can leave an unused hidden staging directory.
+A hard kill before journaling can leave unused hidden staging/backup directories.
+After confirming no converter is running, these can be inspected and cleaned
+up manually; do not remove recovery material while a pending journal exists.
 Do not run concurrent conversions into the same component folder.
 
 Legacy converter-owned footprints with actual `(model ...)` nodes are regenerated
-from cached source. Pre-UUID library names are regenerated in place as aliases;
+from cached source. Pre-UUID library names are regenerated in place as aliases when their paired
+symbol UUID verifies ownership; unassociated libraries are left untouched with
+a manual-cleanup warning;
 current UUID-suffixed libraries are also written. Source SVGNODE metadata alone
 does not trigger migration. Existing STEP/WRL files are never removed. Missing
-footprint cache fails offline. Changed attribution and manifest-detected edits
+footprint cache fails offline. Changed attribution, changed legacy libraries and manifest-detected edits
 are preserved in hash-suffixed previous files. Unrelated library files are not
 overwritten.
 
@@ -338,3 +344,26 @@ Courtyards no longer miss extended silkscreen/body outlines or custom polygons,
 and remote text/stale BBox no longer inflates them. They are conservative 2D
 bounds, not an IPC compliance or manufacturability guarantee. They remain
 F.CrtYd; rear-side courtyard policy needs a genuine source comparison.
+
+## Native integration and validation status
+
+The fast Python 3.11/3.12 Ubuntu/Windows matrix is unchanged. A separate native
+job installs Ubuntu 24.04's distribution KiCad package (8-series), prints the
+actual CLI/build versions and requires both kicad-cli and Python pcbnew. It runs
+only offline `kicad`-marked tests. `EE2KICAD_REQUIRE_KICAD=1` prevents a silently
+skipped native job; `EE2KICAD_REQUIRE_PCBNEW=1` requires geometry bindings too.
+The geometry helper accounts for KiCad 8/9's different GetEffectivePolygon APIs,
+checked against their headers. Only KiCad **9.0.2** was executed locally in this
+audit. The new remote CI results and native KiCad 8 remain pending verification.
+
+Explicit --validate now returns failure when KiCad is absent, fails or times
+out. Symbol and footprint results are separate, and both are attempted on
+copies. Only footprint library files are copied, not unrelated model/user files.
+A 60-second timeout produces a clear diagnostic. Original files stay unchanged,
+and no failed validation can publish a new completion record.
+
+Redirects are disabled per request even for a supplied HTTP client configured
+to follow them. Invalid NaN Retry-After values retain the normal backoff;
+infinite/excessive values still cap at 300 seconds. Pacing, jitter and the
+consecutive access-denial stop rule remain unchanged. No live component fetch
+was used in this audit; reference reads came from public KiCad sources.
