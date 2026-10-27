@@ -182,9 +182,13 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                 log.warning('Modified or legacy library preserved in %s before rebuilding.', saved)
         for relative, content in artifacts.items():
             target = local_path(folder, relative)
-            if target.exists() and target.suffix in ('.kicad_sym', '.kicad_mod'):
-                text = target.read_text(encoding='utf-8')
-                if (relative not in previous and '(generator "easyeda2kicad-local")' not in text
+            if (target.exists() and target.suffix in ('.kicad_sym', '.kicad_mod')
+                    and relative not in previous):
+                try:
+                    text = target.read_text(encoding='utf-8')
+                except UnicodeError as e:
+                    raise ValueError(f'Cannot confirm ownership of unreadable library: {target}; move it aside first') from e
+                if ('(generator "easyeda2kicad-local")' not in text
                         and '(generator easyeda2kicad-local)' not in text):
                     raise ValueError(f'Refusing to overwrite an unrelated library: {target}; move it aside first')
             path = local_path(stage, relative)

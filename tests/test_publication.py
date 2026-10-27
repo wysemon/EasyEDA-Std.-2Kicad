@@ -206,6 +206,38 @@ def test_corrupt_libraries_rebuild_and_preserve_edited_bytes(response, tmp_path)
     assert next(folder.glob('*.kicad_sym.previous-*')).read_text() == broken
 
 
+@pytest.mark.parametrize('kind', ['symbol', 'footprint'])
+@pytest.mark.parametrize('encoding', ['invalid-utf8', 'utf16'])
+def test_unreadable_owned_library_rebuilds_offline_and_preserves_bytes(response, tmp_path, kind, encoding):
+    folder, raw = install_cache(tmp_path, response)
+    c = write_conversion(response, folder)
+    path = (folder / f'{c.name}.kicad_sym' if kind == 'symbol' else
+            folder / f'{c.name}.pretty' / f'{c.name}.kicad_mod')
+    original = path.read_bytes()
+    damaged = b'\xff\xfe damaged\x00bytes' if encoding == 'invalid-utf8' else original.decode('utf-8').encode('utf-16')
+    path.write_bytes(damaged)
+    assert not libraries_complete(folder)
+    uuid = response['result']['uuid']
+    assert run_items([uuid], tmp_path, cached_only=True) == 0
+    assert libraries_complete(folder)
+    assert path.read_bytes() == original
+    assert next(path.parent.glob(path.name + '.previous-*')).read_bytes() == damaged
+    assert (folder / 'raw.json').read_bytes() == raw
+    before = snapshot(folder)
+    assert run_items([uuid], tmp_path) == 0
+    assert snapshot(folder) == before
+
+
+def test_unreadable_unowned_library_is_never_overwritten(response, tmp_path):
+    c = converter.convert_response(response)
+    path = tmp_path / f'{c.name}.kicad_sym'
+    path.write_bytes(b'\xff another tool or user file')
+    before = snapshot(tmp_path)
+    with pytest.raises(ValueError, match='Cannot confirm ownership.*move it aside'):
+        write_conversion(response, tmp_path)
+    assert snapshot(tmp_path) == before
+
+
 @pytest.mark.parametrize('broken', ['', '(kicad_symbol_lib (symbol "x" (pin input line)))'])
 def test_empty_or_balanced_but_incomplete_library_is_not_skipped(response, tmp_path, broken):
     folder, _ = install_cache(tmp_path, response)

@@ -246,6 +246,11 @@ footprint cache fails offline. Changed attribution, changed legacy libraries and
 are preserved in hash-suffixed previous files. Unrelated library files are not
 overwritten.
 
+Manifest-owned damaged libraries can be rebuilt without decoding their old
+contents. Invalid UTF-8 or UTF-16 files are preserved byte-for-byte in previous
+files before replacement. Unreadable libraries without matching ownership
+metadata are refused, so an unrelated user file is never inferred to be ours.
+
 CI runs the offline suite on Ubuntu and Windows, on Python 3.11 and 3.12.
 Only dependency installation uses the network; component HTTP requests
 are blocked by test fixtures. Native launcher tests run on their own platform.
