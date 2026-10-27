@@ -2,6 +2,8 @@
 
 Paste a public **EasyEDA Standard** component link and get a KiCad 8/9/10 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
 
+![EasyEDA to KiCad conversion demo](docs/assets/demo.gif)
+
 ## Quick start 🚀
 
 You need [Git](https://git-scm.com/downloads) and [Python 3.11 or newer](https://www.python.org/downloads/). On Windows, enable **Add Python to PATH** during installation.
