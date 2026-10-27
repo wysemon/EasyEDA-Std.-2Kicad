@@ -22,6 +22,36 @@ def load(uuid):
     return json.loads((FIXTURES / f'{uuid}.json').read_bytes())
 
 
+def test_mechanical_layer_has_one_summary_without_changing_output(caplog):
+    data = load(ESP32_IDS[1])
+    before = copy.deepcopy(data)
+    converted = convert_response(data)
+    messages = [r.getMessage() for r in caplog.records if 'layer 15' in r.getMessage()]
+    assert messages == [f'{ESP32_IDS[1]}: 13 elements on layer 15 skipped']
+    assert data == before
+    shapes = data['result']['packageDetail']['dataStr']['shape']
+    mechanical = [
+        raw
+        for raw in shapes
+        if (raw.startswith('TRACK~') and raw.split('~')[2] == '15')
+        or (raw.startswith('TEXT~') and raw.split('~')[7] == '15')
+    ]
+    assert len(mechanical) == 13
+    shapes[:] = [raw for raw in shapes if raw not in mechanical]
+    assert convert_response(data) == converted
+
+
+def test_mechanical_layer_does_not_hide_invalid_pads(response):
+    shapes = response['result']['packageDetail']['dataStr']['shape']
+    fields = next(raw for raw in shapes if raw.startswith('PAD~')).split('~')
+    fields[6] = '15'
+    shapes.append('~'.join(fields))
+    with pytest.raises(
+        ValueError, match='invalid essential footprint PAD.*unsupported pad layer 15'
+    ):
+        convert_response(response)
+
+
 @pytest.mark.parametrize('uuid', ESP32_IDS)
 def test_real_missing_symbol_origin_uses_canvas(uuid, caplog):
     data = load(uuid)

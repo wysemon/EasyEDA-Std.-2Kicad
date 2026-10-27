@@ -65,6 +65,8 @@ Do not discard either speaker connection. TP4056 has four pins. Both packages ha
 These mappings match KiCad 9's Standard importer and the layer names embedded
 in our real fixtures. Unmapped drawing layers warn; unknown pad layers fail.
 We do not map model layer 19 or add inner-copper support in this audit.
+Layer 15 (Mechanical) drawings remain skipped, with one count summary per
+component instead of a warning for each element.
 Generate F.CrtYd from exported pads, holes and non-text physical outlines,
 with 0.25 mm margin rounded outwards to a 0.05 mm grid. Do not use source BBox
 for courtyards: it can be stale or include remote documentation/text. Include
@@ -127,8 +129,7 @@ optionally checked with native KiCad, and published with rollback metadata.
 Cached conversion passes no client to the footprint resolver and stays offline.
 
 For module responsibilities, formatting and development commands, see
-[CONTRIBUTING.md](../CONTRIBUTING.md). Historical audit results are kept separately
-in [FINAL_AUDIT.md](FINAL_AUDIT.md) and [PR_FOLLOWUP.md](PR_FOLLOWUP.md).
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## CLI portability and validation
 

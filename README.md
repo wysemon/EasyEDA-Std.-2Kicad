@@ -202,7 +202,6 @@ The normal suite deselects it. CI never runs it; `CI` or `EE2KICAD_DISABLE_LIVE`
 
 - [Contributing](CONTRIBUTING.md): setup, code map, formatting and test commands.
 - [API and format notes](docs/API_NOTES.md): verified conventions and remaining limits.
-- [Audit](docs/FINAL_AUDIT.md) and [follow-up](docs/PR_FOLLOWUP.md): recorded findings and validation evidence.
 - [Report a problem](https://github.com/wysemon/EasyEDA-Std.-2Kicad/issues): include the component link, command and relevant warning.
 
 ## Credits and license

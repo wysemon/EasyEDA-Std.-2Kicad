@@ -97,6 +97,7 @@ def convert_response(response, package=None, *, library_name=None):
     )
     sc, fc = Coordinates(data, True), Coordinates(fp)
     pins, pads, sg, fg = [], [], [], []
+    mechanical_skipped = 0
     for raw in fp.get('shape', []):
         fields = raw.split('~')
         kind = fields[0]
@@ -108,6 +109,11 @@ def convert_response(response, package=None, *, library_name=None):
             'CIRCLE': 5,
             'TEXT': 7,
         }.get(kind)
+        # Mechanical drawings remain unsupported; summarize their omissions
+        # without hiding failures in electrical records such as PAD/VIA/HOLE.
+        if layer_index is not None and len(fields) > layer_index and fields[layer_index] == '15':
+            mechanical_skipped += 1
+            continue
         copper = (
             layer_index is not None
             and len(fields) > layer_index
@@ -144,6 +150,8 @@ def convert_response(response, package=None, *, library_name=None):
             log.warning('%s: skipping optional footprint element (%s): %s', result['uuid'], e, raw)
         if len(fg) > MAX_PRIMITIVES:
             raise ValueError('footprint exceeds supported primitive count')
+    if mechanical_skipped:
+        log.warning('%s: %d elements on layer 15 skipped', result['uuid'], mechanical_skipped)
     for raw in data.get('shape', []):
         kind = raw.split('~', 1)[0]
         try:
