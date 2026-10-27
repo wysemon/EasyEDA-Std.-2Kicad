@@ -9,7 +9,9 @@ from dataclasses import dataclass
 from .credits import owner
 from .geometry import numbers, path_segments
 from .shared import (
+    MAX_SHAPES,
     UNIT,
+    document,
     effects,
     f,
     fill,
@@ -225,7 +227,42 @@ def unit_one(data):
     )
 
 
-def render_symbol(result, data, name, sc, sg, pins, *, has_footprint=True):
+def symbol_units(result):
+    """Read verified result.subparts; its first document replaces the parent copy.
+
+    The STM32 fixture repeats unit 1 in result.dataStr. Unit numbers follow list
+    order, not c_para.subpart_no (both of its units incorrectly say '1').
+    Reject incomplete/unknown layouts instead of silently keeping a parent unit.
+    """
+    parent = unit_one(document(result['dataStr']))
+    parts = result.get('subparts')
+    if not parts:
+        return [parent]
+    try:
+        if not isinstance(parts, list) or len(parts) > 100:
+            raise ValueError('expected a list of at most 100 complete unit documents')
+        units = []
+        for index, part in enumerate(parts, 1):
+            if not isinstance(part, dict) or not part.get('dataStr'):
+                raise ValueError(f'unit {index} is missing dataStr')
+            unit = unit_one(document(part['dataStr']))
+            if not isinstance(unit.get('head'), dict) or not isinstance(unit.get('shape'), list):
+                raise ValueError(f'unit {index} is missing head/shape')
+            if unit.get('subparts') or part.get('subparts'):
+                raise ValueError(f'unit {index} has unsupported nested subparts')
+            if not any(raw.startswith('P~') for raw in unit['shape']):
+                raise ValueError(f'unit {index} has no pins')
+            units.append(unit)
+        if parent.get('shape') and parent['shape'] != units[0]['shape']:
+            raise ValueError('parent geometry differs from unit 1')
+        if sum(len(unit['shape']) for unit in units) > MAX_SHAPES:
+            raise ValueError('combined units exceed supported shape count')
+        return units
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        raise ValueError(f'Multi-unit symbol: {e}; refusing a partial library') from e
+
+
+def render_symbol(result, data, name, sc, sg, pins, *, has_footprint=True, units=None):
     """Render body, pins and source metadata with a matching footprint reference."""
     para = data['head'].get('c_para') or {}
     source = f'https://easyeda.com/component/{result["uuid"]}'
@@ -244,7 +281,10 @@ def render_symbol(result, data, name, sc, sg, pins, *, has_footprint=True):
     ]
     if hidden_names:
         properties['EasyEDA Hidden Pin Names'] = json.dumps(hidden_names, ensure_ascii=False)
-    center, value_y = symbol_label_position(data, sc, sg, pins)
+    first_data, first_coords, first_graphics, first_pins = (
+        units[0] if units else (data, sc, sg, pins)
+    )
+    center, value_y = symbol_label_position(first_data, first_coords, first_graphics, first_pins)
     # Property angles are degrees; graphic text above uses deci-degrees.
     positions = {'Reference': (center, value_y + 2.54), 'Value': (center, value_y)}
     hidden_x, hidden_y = symbol_label_position(data, sc, sg, pins, below=True)
@@ -259,10 +299,25 @@ def render_symbol(result, data, name, sc, sg, pins, *, has_footprint=True):
         if hidden:
             hidden_y -= 1.27
     props = '\n'.join(rows)
+    if units:
+        body = (
+            '\n'.join(
+                f'(symbol {q(name + f"_{index}_1")}\n'
+                + '\n'.join([*graphics, *(p.render() for p in unit_pins)])
+                + ')'
+                for index, (_, _, graphics, unit_pins) in enumerate(units, 1)
+            )
+            + '\n'
+        )
+    else:
+        body = (
+            f'(symbol {q(name + "_0_1")}\n' + '\n'.join(sg) + ')\n'
+            f'(symbol {q(name + "_1_1")}\n' + '\n'.join(p.render() for p in pins) + ')\n'
+        )
     symbol = (
         f'(kicad_symbol_lib (version 20231120) (generator "easyeda2kicad-local")\n'
         f'(symbol {q(name)} (pin_names (offset 0.508)) (in_bom yes) (on_board yes)\n{props}\n'
-        f'(symbol {q(name + "_0_1")}\n' + '\n'.join(sg) + ')\n'
-        f'(symbol {q(name + "_1_1")}\n' + '\n'.join(p.render() for p in pins) + ')\n))\n'
+        + body
+        + '))\n'
     )
     return symbol

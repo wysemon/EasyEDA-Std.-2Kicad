@@ -2,14 +2,16 @@
 
 import copy
 import json
+import logging
 import math
+from collections import Counter
 from pathlib import Path
 
 import pytest
 
 from easyeda2kicad_local.converter import convert_response
 from easyeda2kicad_local.geometry import point_pairs
-from easyeda2kicad_local.sexpr import children, loads
+from easyeda2kicad_local.sexpr import children, descendants, loads
 from easyeda2kicad_local.shared import UNIT
 
 FIXTURES = Path(__file__).parent / 'fixtures'
@@ -149,3 +151,133 @@ def test_symbol_only_failed_validation_preserves_existing(tmp_path, monkeypatch)
     with pytest.raises(ValueError, match='KiCad validation failed'):
         write_conversion(load(BUZZER), folder, validate=True)
     assert snapshot(folder) == before
+
+
+STM32 = '0010e6e3c07c4ca9b85cbb34a79052f3'
+
+
+def symbol_unit_nodes(converted):
+    return children(children(loads(converted.symbol), 'symbol')[0], 'symbol')
+
+
+def test_stm32_all_48_pins_exported_once_in_two_units():
+    response = load(STM32)
+    before = copy.deepcopy(response)
+    converted = convert_response(response)
+    units = symbol_unit_nodes(converted)
+    assert [u[1] for u in units] == [f'{converted.name}_1_1', f'{converted.name}_2_1']
+    assert [len(children(u, 'pin')) for u in units] == [9, 39]
+    numbers = [children(p, 'number')[0][1] for u in units for p in children(u, 'pin')]
+    assert Counter(numbers) == Counter(map(str, range(1, 49)))
+    assert Counter(p.number for p in converted.pads) == Counter(numbers)
+    assert len(converted.pins) == len(converted.pads) == 48
+    assert all(len(children(u, 'rectangle')) == 1 for u in units)
+    assert response == before
+    # Reference/Value are above unit 1, not the taller unit 2.
+    props = children(children(loads(converted.symbol), 'symbol')[0], 'property')
+    visible = [p for p in props if p[1] in ('Reference', 'Value')]
+    assert [float(children(p, 'at')[0][2]) for p in visible] == pytest.approx([14.732, 12.192])
+
+
+def test_each_unit_uses_its_own_origin():
+    response = load(STM32)
+    expected = convert_response(response)
+    response['result']['subparts'][1]['dataStr']['head'].update(x=2990, y=4010)
+    converted = convert_response(response)
+    assert converted.pins[:9] == expected.pins[:9]
+    for pin, before in zip(converted.pins[9:], expected.pins[9:]):
+        assert (pin.x, pin.y) == pytest.approx((before.x + 2.54, before.y + 2.54))
+
+
+@pytest.mark.parametrize(
+    'failure',
+    ['missing-data', 'empty', 'bad-pin', 'bad-graphic', 'parent-mismatch', 'nested', 'bad-list'],
+)
+def test_unparseable_unit_fails_instead_of_exporting_partial_symbol(failure):
+    response = load(STM32)
+    parts = response['result']['subparts']
+    if failure == 'missing-data':
+        parts[1].pop('dataStr')
+    elif failure == 'empty':
+        parts[1]['dataStr']['shape'] = []
+    elif failure == 'bad-pin':
+        parts[1]['dataStr']['shape'].append('P~invalid')
+    elif failure == 'bad-graphic':
+        parts[1]['dataStr']['shape'].append('UNSUPPORTED~drawing')
+    elif failure == 'parent-mismatch':
+        response['result']['dataStr']['shape'].append('T~extra')
+    elif failure == 'nested':
+        parts[1]['subparts'] = [{}]
+    else:
+        response['result']['subparts'] = {'unknown': {}}
+    with pytest.raises(ValueError, match='unit|Multi-unit'):
+        convert_response(response)
+
+
+def test_multiunit_count_is_bounded():
+    response = load(STM32)
+    response['result']['subparts'] *= 51
+    with pytest.raises(ValueError, match='at most 100'):
+        convert_response(response)
+
+
+def test_stm32_partial_legacy_cache_is_reconverted_offline(tmp_path, monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    from easyeda2kicad_local.client import EasyEDAClient
+    from easyeda2kicad_local.converter import write_conversion
+    from easyeda2kicad_local.publication import COMPLETE, libraries_complete
+    from easyeda2kicad_local.workflow import run_items
+
+    response = load(STM32)
+    incomplete = copy.deepcopy(response)
+    incomplete['result'].pop('subparts')
+    folder = tmp_path / 'stm32'
+    partial = write_conversion(incomplete, folder)
+    assert len(partial.pins) == 9
+    (folder / COMPLETE).unlink()
+    raw = (FIXTURES / f'{STM32}.json').read_bytes()
+    (folder / 'raw.json').write_bytes(raw)
+    assert not libraries_complete(folder)
+    monkeypatch.setattr(EasyEDAClient, 'component', lambda *_: pytest.fail('No network allowed'))
+    assert run_items([STM32], tmp_path) == 0
+    assert libraries_complete(folder, expected_uuid=STM32)
+    assert 're-converting from cache' in caplog.text
+    assert (folder / 'raw.json').read_bytes() == raw
+    assert (
+        len(list(descendants(loads((folder / f'{partial.name}.kicad_sym').read_text()), 'pin')))
+        == 48
+    )
+
+
+@pytest.mark.kicad
+def test_stm32_native_upgrade_and_export_preserve_both_units(tmp_path):
+    import subprocess
+
+    from easyeda2kicad_local.converter import write_conversion
+
+    converted = write_conversion(load(STM32), tmp_path, validate=True)
+    path = tmp_path / f'{converted.name}.kicad_sym'
+    upgraded = tmp_path / 'roundtrip.kicad_sym'
+    upgraded.write_bytes(path.read_bytes())
+    run = subprocess.run(
+        ['kicad-cli', 'sym', 'upgrade', '--force', str(upgraded)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    units = children(children(loads(upgraded.read_text()), 'symbol')[0], 'symbol')
+    assert [len(children(u, 'pin')) for u in units if children(u, 'pin')] == [9, 39]
+    assert Counter(
+        children(p, 'number')[0][1] for u in units for p in children(u, 'pin')
+    ) == Counter(map(str, range(1, 49)))
+    svg = tmp_path / 'svg'
+    svg.mkdir()
+    run = subprocess.run(
+        ['kicad-cli', 'sym', 'export', 'svg', '--output', str(svg), str(path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert len(list(svg.glob('*.svg'))) == 2

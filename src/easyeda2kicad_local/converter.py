@@ -49,7 +49,7 @@ from .shared import svg_graphics as svg_graphics
 from .symbol import SYMBOL_TEXT_SIZE_CAP as SYMBOL_TEXT_SIZE_CAP
 from .symbol import Pin as Pin
 from .symbol import parse_pin as parse_pin
-from .symbol import render_symbol
+from .symbol import render_symbol, symbol_units
 from .symbol import symbol_graphic as symbol_graphic
 from .symbol import symbol_label_position as symbol_label_position
 from .symbol import symbol_text_angle as symbol_text_angle
@@ -87,7 +87,8 @@ def convert_response(response, package=None, *, library_name=None):
     result = response['result']
     if not isinstance(result.get('uuid'), str) or not UUID.fullmatch(result['uuid']):
         raise ValueError('invalid component UUID in source response')
-    data = unit_one(document(result['dataStr']))
+    documents = symbol_units(result)
+    data = document(result['dataStr'])
     package = package or result.get('packageDetail')
     if not package and data['head'].get('puuid'):
         raise ValueError('missing footprint; fetch packageDetail or cache package_raw.json')
@@ -97,7 +98,7 @@ def convert_response(response, package=None, *, library_name=None):
     name = (
         library_name or safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
     )
-    sc = Coordinates(data, True)
+    sc = Coordinates(documents[0], True)
     fc = Coordinates(fp) if package else None
     pins, pads, sg, fg = [], [], [], []
     mechanical_skipped = 0
@@ -161,21 +162,35 @@ def convert_response(response, package=None, *, library_name=None):
         raise ValueError(
             f'{result["uuid"]}: ' + '; '.join(essential_errors) + '; no new libraries published'
         )
-    for raw in data.get('shape', []):
-        kind = raw.split('~', 1)[0]
+    units = []
+    for index, unit in enumerate(documents, 1):
         try:
-            if kind == 'P':
-                pins.append(parse_pin(raw, sc))
-            else:
-                sg.extend(symbol_graphic(raw, sc))
+            coords = sc if index == 1 else Coordinates(unit, True)
+            unit_pins, graphics = [], []
+            for raw in unit.get('shape', []):
+                kind = raw.split('~', 1)[0]
+                try:
+                    if kind == 'P':
+                        unit_pins.append(parse_pin(raw, coords))
+                    else:
+                        graphics.extend(symbol_graphic(raw, coords))
+                except (ValueError, IndexError, KeyError, TypeError) as e:
+                    if kind == 'P' or result.get('subparts'):
+                        raise ValueError(
+                            f'invalid essential symbol pin or unit geometry: {e}; raw: {raw}'
+                        ) from e
+                    log.warning(
+                        '%s: skipping optional symbol element (%s): %s', result['uuid'], e, raw
+                    )
+                if len(sg) + len(graphics) > MAX_PRIMITIVES:
+                    raise ValueError('symbol exceeds supported primitive count')
+            pins.extend(unit_pins)
+            sg.extend(graphics)
+            units.append((unit, coords, graphics, unit_pins))
         except (ValueError, IndexError, KeyError, TypeError) as e:
-            if kind == 'P':
-                raise ValueError(
-                    f'{result["uuid"]}: invalid essential symbol pin: {e}; no new libraries published'
-                ) from e
-            log.warning('%s: skipping optional symbol element (%s): %s', result['uuid'], e, raw)
-        if len(sg) > MAX_PRIMITIVES:
-            raise ValueError('symbol exceeds supported primitive count')
+            raise ValueError(
+                f'{result["uuid"]}: unit {index}: {e}; no new libraries published'
+            ) from e
     for number, count in Counter(p.number for p in pins).items():
         if count > 1:
             log.warning('Duplicate symbol pin number %s (%s records retained)', number, count)
@@ -185,7 +200,16 @@ def convert_response(response, package=None, *, library_name=None):
     if not pins or (package and not pads):
         raise ValueError('no usable pins or pads; refusing empty library')
     footprint = render_footprint(name, fp, fc, pads, fg) if package else ''
-    symbol = render_symbol(result, data, name, sc, sg, pins, has_footprint=bool(package))
+    symbol = render_symbol(
+        result,
+        data,
+        name,
+        sc,
+        sg,
+        pins,
+        has_footprint=bool(package),
+        units=units if result.get('subparts') else None,
+    )
     credits = render_credits(result, data, fp, package, name)
     return Conversion(name, pins, pads, symbol, footprint, credits)
 

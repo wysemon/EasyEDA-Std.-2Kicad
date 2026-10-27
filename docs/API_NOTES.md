@@ -112,14 +112,13 @@ unverified drilling conventions.
 In the original MAX98357A/TP4056 fixtures, only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur.
 Other documented records are implemented conservatively and must be checked
 against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE, custom polygon pads,
-slots, multilayer SMD, pin clock/inversion, subparts.
+slots, multilayer SMD and pin clock/inversion.
 Unsupported optional drawings warn with UUID and raw line and are skipped.
 Malformed P/PAD/VIA/HOLE records and supported copper geometry fail the whole
 component before publication. Empty pins, or empty pads in a supplied footprint, fail too. Duplicate
 pin numbers and unmatched physical pads remain allowed and are retained.
-Nonempty `subparts` is an explicit unsupported multi-unit error, even alongside
-top-level shapes; empty/missing subparts keeps single-unit behavior. There is
-no unit-1 compatibility option because no verified complete unit layout exists.
+Multi-unit support uses the verified `result.subparts` layout described below.
+Nonempty subparts inside dataStr remains an unsupported layout and fails.
 
 ## Conversion pipeline
 
@@ -464,3 +463,22 @@ Completion checks accept this only with an empty association and no generated
 footprint; a cached source with footprint geometry still requires all pads.
 A nonempty puuid still requires the existing cached/fetched fallback; missing
 fallback data, malformed UUIDs and invalid supplied footprints remain errors.
+
+## STM32 multi-unit source
+
+`0010e6e3c07c4ca9b85cbb34a79052f3` contains `result.subparts`: an ordered
+list of objects with uuid/title/dataStr. The parent dataStr duplicates the first
+unit (9 power pins). The two subpart dataStr documents contain 9 and 39 pins;
+together they cover pins 1–48 exactly once, matching 48 footprint pads. The list
+is authoritative: do not add the parent again. Both subparts incorrectly have
+`c_para.subpart_no = "1"`, so numbering follows list order. Each document has
+its own head/canvas origin, shapes and BBox.
+
+Export each complete document into `name_1_1`, `name_2_1`, etc., with both its
+body and pins in that unit, translated using its own origin. Reference/Value
+clear the first unit. Hidden metadata clears all units' drawings/pins.
+Incomplete/nested/unknown unit layouts, parent geometry differing from the first
+unit, or any unparseable unit element fail the whole component. Duplicate pin
+numbers still warn and remain stored. Limits are 100 units, 10,000 combined
+shapes and the existing total primitive bound. Cache pin counts include all units;
+a legacy unit-1-only export must be rebuilt from raw bytes without HTTP.

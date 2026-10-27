@@ -18,6 +18,7 @@ from pathlib import Path
 from .client import UUID
 from .files import atomic_write, read_limited
 from .sexpr import children, contains, descendants, loads
+from .symbol import symbol_units
 
 log = logging.getLogger(__name__)
 COMPLETE = '.ee2kicad-complete.json'
@@ -101,20 +102,18 @@ def source_counts(folder):
     result = json.loads(read_limited(raw))['result']
     symbol = result['dataStr']
     symbol = json.loads(symbol) if isinstance(symbol, str) else symbol
-    if symbol.get('subparts'):
-        raise ValueError('multi-unit cache is incomplete')
+    units = symbol_units(result)
+    pins = sum(raw.split('~', 1)[0] == 'P' for unit in units for raw in unit['shape'])
     package = result.get('packageDetail')
     if not package:
         if symbol['head'].get('puuid'):
             package = json.loads(read_limited(folder / 'package_raw.json'))['result']
         else:
-            pins = sum(raw.split('~', 1)[0] == 'P' for raw in symbol['shape'])
             if not pins:
                 raise ValueError('no source pins')
             return pins, 0
     footprint = package['dataStr']
     footprint = json.loads(footprint) if isinstance(footprint, str) else footprint
-    pins = sum(raw.split('~', 1)[0] == 'P' for raw in symbol['shape'])
     pads = sum(raw.split('~', 1)[0] in ('PAD', 'VIA', 'HOLE') for raw in footprint['shape'])
     if not pins or not any(raw.startswith('PAD~') for raw in footprint['shape']):
         raise ValueError('no source pins or pads')
