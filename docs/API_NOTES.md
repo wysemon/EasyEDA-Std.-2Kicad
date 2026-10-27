@@ -488,3 +488,19 @@ to resolve an origin). New imported fixtures omit symbol head.x/y and verify the
 same 3000/4000 canvas fallback. Their footprint head origins are present and
 agree with canvas fields 16/17; tests remove those head fields and verify
 byte-identical footprints and unchanged pad positions, not an inferred recentering.
+
+## LED source artwork check
+
+`9600215afc5549bca9bc489bdc414477` (LED_LEDCHIP-LED0805) uses explicit
+footprint origin (400,300), matching its canvas. Its pad centers are (400,304.134)
+and (400,295.866): local KiCad (0,+1.050036) and (0,-1.050036) mm.
+Three source SOLIDREGION bars on layer 3 become F.SilkS; their X coordinates
+span approximately ±0.675 mm and Y is -0.299974 to 0 mm, between the pads.
+Two more SOLIDREGION rectangles and two TRACK outlines are layer 12 (Document),
+so they belong on Dwgs.User. The rectangles extend to Y ±1.050036 mm over
+pad areas. They are the author's documentation artwork, not remote silkscreen
+or an origin offset. No artwork is moved, deleted or relayered to improve looks.
+The bare-point parser above now exports all five regions rather than skipping
+them. Source coordinate tests and native KiCad polygon checks verify their
+locations and layers. A GUI comparison with the author's original editor view
+has not been performed.

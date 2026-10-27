@@ -162,3 +162,77 @@ def test_native_easyeda_and_kicad_geometry_agree(case, raw, calibration, pcbnew_
         )  # Source slot is horizontal.
     for point in original['outline']:
         assert min(math.dist(point, p) for p in generated['outline']) < 0.0002
+
+
+@pytest.mark.kicad
+@pytest.mark.parametrize(
+    'uuid',
+    [
+        'c1e9a7b5304f4595a62af862fec3a102',
+        'c50879e99f214b40a692b31827f5fe31',
+        '9600215afc5549bca9bc489bdc414477',
+    ],
+)
+def test_real_imported_polygons_match_source_in_native_kicad(uuid, pcbnew_python, tmp_path):
+    from easyeda2kicad_local.converter import write_conversion
+    from easyeda2kicad_local.sexpr import children, loads
+
+    response = json.loads((ROOT / 'fixtures' / f'{uuid}.json').read_bytes())
+    converted = write_conversion(response, tmp_path / 'libraries')
+    pretty = tmp_path / 'libraries' / f'{converted.name}.pretty'
+    script = """
+import json, os, re, sys
+from pathlib import Path
+for key in ('XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME'):
+    location = Path(sys.argv[1]).parent / key.lower()
+    location.mkdir(exist_ok=True)
+    os.environ[key] = str(location)
+import pcbnew
+fp = pcbnew.FootprintLoad(sys.argv[1], sys.argv[2])
+assert fp is not None
+major = int(re.search(r'\\d+', pcbnew.GetBuildVersion())[0])
+def outline(poly):
+    contour = poly.COutline(0)
+    return [[pcbnew.ToMM(contour.CPoint(i).x), pcbnew.ToMM(contour.CPoint(i).y)]
+            for i in range(contour.PointCount())]
+pads = {}
+for pad in fp.Pads():
+    poly = pad.GetEffectivePolygon(pad.GetLayer()) if major >= 9 else pad.GetEffectivePolygon()
+    pads[pad.GetNumber()] = outline(poly)
+graphics = [dict(layer=int(item.GetLayer()), points=outline(item.GetPolyShape()))
+            for item in fp.GraphicalItems() if item.GetShape() == pcbnew.SHAPE_T_POLY]
+print(json.dumps(dict(pads=pads, graphics=graphics, layers={'F.SilkS': int(pcbnew.F_SilkS), 'Dwgs.User': int(pcbnew.Dwgs_User)})))
+"""
+    result = subprocess.run(
+        [pcbnew_python, '-c', script, str(pretty), converted.name],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    native = json.loads(result.stdout)
+    if uuid != '9600215afc5549bca9bc489bdc414477':
+        source = response['result']['packageDetail']['dataStr']
+        coords = Coordinates(source)
+        for raw in source['shape']:
+            if not raw.startswith('PAD~'):
+                continue
+            fields = raw.split('~')
+            expected = [coords.point(x, y) for x, y in point_pairs(fields[10])]
+            actual = native['pads'][fields[8]]
+            assert all(min(math.dist(p, q) for q in actual) < 0.0001 for p in expected)
+            assert all(min(math.dist(p, q) for q in expected) < 0.0001 for p in actual)
+    else:
+        expected = children(loads(converted.footprint), 'fp_poly')
+        assert len(native['graphics']) == len(expected) == 5
+        for polygon in expected:
+            layer = one(polygon, 'layer')[1]
+            points = [list(map(float, p[1:])) for p in one(polygon, 'pts')[1:]]
+            matches = [
+                g
+                for g in native['graphics']
+                if g['layer'] == native['layers'][layer]
+                and all(min(math.dist(p, q) for q in g['points']) < 0.0001 for p in points)
+            ]
+            assert len(matches) == 1
+            assert all(min(math.dist(p, q) for q in points) < 0.0001 for p in matches[0]['points'])

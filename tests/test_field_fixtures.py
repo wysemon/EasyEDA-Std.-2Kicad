@@ -308,3 +308,48 @@ def test_footprint_canvas_fallback_preserves_real_pad_offsets(uuid, caplog):
     # Preserve real physical offsets (the header is 40 mm long); no canvas-sized
     # 100+ mm displacement or rescaling may be introduced by this fallback.
     assert max(abs(v) for p in converted.pads for v in (p.x, p.y)) < 21
+
+
+LED = '9600215afc5549bca9bc489bdc414477'
+
+
+def test_led_drawings_keep_source_layers_and_offsets_without_remote_shapes(caplog):
+    response = load(LED)
+    before = copy.deepcopy(response)
+    converted = convert_response(response)
+    assert response == before
+    assert 'skipping optional footprint' not in caplog.text
+    assert [(p.number, p.x, p.y) for p in converted.pads] == [
+        ('A', 0.0, pytest.approx(1.050036)),
+        ('C', 0.0, pytest.approx(-1.050036)),
+    ]
+    polygons = children(loads(converted.footprint), 'fp_poly')
+    assert Counter(children(p, 'layer')[0][1] for p in polygons) == {'F.SilkS': 3, 'Dwgs.User': 2}
+    source_regions = [
+        s
+        for s in response['result']['packageDetail']['dataStr']['shape']
+        if s.startswith('SOLIDREGION~')
+    ]
+    for polygon, raw in zip(polygons, source_regions):
+        points = [tuple(map(float, p[1:])) for p in children(polygon, 'pts')[0][1:]]
+        source = [((x - 400) * UNIT, (y - 300) * UNIT) for x, y in point_pairs(raw.split('~')[3])]
+        assert len(points) == len(source)  # Source already repeats its first point.
+        assert all(actual == pytest.approx(expected) for actual, expected in zip(points, source))
+        assert points[0] == points[-1]
+        assert max(abs(x) for x, _ in points) < 0.68
+        assert max(abs(y) for _, y in points) <= 1.051
+    # The two additional source outlines also belong to Document, not silkscreen.
+    assert len(children(loads(converted.footprint), 'fp_line')) == 2
+    assert all(
+        children(p, 'layer') == [['layer', 'Dwgs.User']]
+        for p in children(loads(converted.footprint), 'fp_line')
+    )
+
+
+def test_led_footprint_canvas_fallback_keeps_source_artwork():
+    response = load(LED)
+    expected = convert_response(response)
+    head = response['result']['packageDetail']['dataStr']['head']
+    head.pop('x')
+    head.pop('y')
+    assert convert_response(response) == expected
