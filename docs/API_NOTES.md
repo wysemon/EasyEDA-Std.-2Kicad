@@ -438,3 +438,17 @@ to follow them. Invalid NaN Retry-After values retain the normal backoff;
 infinite/excessive values still cap at 300 seconds. Pacing, jitter and the
 consecutive access-denial stop rule remain unchanged. No live component fetch
 was used in this audit; reference reads came from public KiCad sources.
+
+## Imported polygon pads and point-list regions
+
+`c1e9a7b5304f4595a62af862fec3a102` (Eagle) and
+`c50879e99f214b40a692b31827f5fe31` (Altium) contain genuine `PAD~POLYGON`
+records with width/height `0`. Their absolute point pairs (field 10) define the
+copper; missing dimensions are derived from the unrotated local polygon bounds.
+Consecutive repeated vertices are harmless. Polygon validity and anchor containment
+checks remain required; negative dimensions and invalid layers still fail. Errors
+include each bad pad's raw record and reason before any libraries are published.
+
+The Eagle transistor's `SOLIDREGION` field 3 is a bare list of XY pairs, not
+an SVG path. This format is parsed as one closed polygon. The same checks for
+empty, malformed, compound and self-intersecting copper regions still apply.

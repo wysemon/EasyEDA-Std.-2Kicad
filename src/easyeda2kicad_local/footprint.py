@@ -90,7 +90,14 @@ def parse_pad(raw, coords):
     """Read the verified PAD field layout and keep all physical units in mm."""
     t = raw.split('~')
     x, y = coords.point(t[2], t[3])
-    w, h, radius = num(t[4]) * UNIT, num(t[5]) * UNIT, num(t[9]) * UNIT
+    dimensions = []
+    for field, label in ((4, 'width'), (5, 'height')):
+        try:
+            dimensions.append(num(t[field]) * UNIT)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f'invalid pad {label} {t[field]!r}: {e}') from e
+    w, h = dimensions
+    radius = num(t[9]) * UNIT
     angle = num(t[11])
     shape = {
         'RECT': 'rect',
@@ -98,8 +105,10 @@ def parse_pad(raw, coords):
         'OVAL': 'oval',
         'POLYGON': 'custom',
     }.get(t[1])
-    if shape is None or min(w, h) <= 0:
-        raise ValueError('unsupported/invalid pad shape or size')
+    if shape is None:
+        raise ValueError(f'unsupported pad shape {t[1]!r}')
+    if min(w, h) < 0 or (shape != 'custom' and min(w, h) == 0):
+        raise ValueError(f'invalid pad width {t[4]!r} or height {t[5]!r} for {t[1]}')
     through = t[6] == '11'
     flag = t[15] if len(t) > 15 else ''
     plating = flag.strip().lower()
@@ -149,6 +158,13 @@ def parse_pad(raw, coords):
                 )
             )
         check_polygon(polygon)
+        # Eagle/Altium imports legitimately omit a polygon pad's dimensions.
+        # Its absolute vertices are authoritative; derive missing dimensions
+        # in the unrotated local frame, without moving or resizing the polygon.
+        if w == 0:
+            w = max(px for px, _ in polygon) - min(px for px, _ in polygon)
+        if h == 0:
+            h = max(py for _, py in polygon) - min(py for _, py in polygon)
         # KiCad adds a circular anchor at the pad origin. It must fit wholly
         # inside the source polygon; otherwise the anchor invents extra copper.
         vertices = [tuple(round(v, 6) for v in p) for p in polygon]
@@ -198,7 +214,11 @@ def footprint_graphic(raw, coords):
     if kind == 'SOLIDREGION':
         if t[4] not in ('solid', ''):
             raise ValueError(f'unsupported region type {t[4]}')
-        return svg_graphics(t[3], coords, 0.01, False, layer(t[1]), solid=True)
+        path = t[3].strip()
+        if path and path[0] not in 'Mm':
+            points = point_pairs(path, minimum=3)
+            path = 'M ' + ' L '.join(f'{x} {y}' for x, y in points) + ' Z'
+        return svg_graphics(path, coords, 0.01, False, layer(t[1]), solid=True)
     if kind == 'TEXT':
         mirror = ' (justify mirror)' if t[6] == '1' else ''
         size = num(t[9], 5) * UNIT
