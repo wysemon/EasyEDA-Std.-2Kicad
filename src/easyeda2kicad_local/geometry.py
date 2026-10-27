@@ -6,6 +6,50 @@ import re
 NUMBER = r'[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?'
 MAX_GEOMETRY_CHARS = 1_000_000
 MAX_GEOMETRY_POINTS = 100_000
+MAX_POLYGON_VERTICES = 1_000
+
+
+def check_polygon(points):
+    """Reject ambiguous copper fills at the serialized one-nanometre precision.
+
+    Exact integer cross products avoid floating tolerances at edge contacts.
+    Bound the pairwise check rather than add a sweep-line geometry framework.
+    """
+    vertices = []
+    for x, y in points:
+        point = (round(x * 1_000_000), round(y * 1_000_000))
+        if not vertices or point != vertices[-1]:
+            vertices.append(point)
+    if len(vertices) > 1 and vertices[-1] == vertices[0]:
+        vertices.pop()
+    if len(vertices) > MAX_POLYGON_VERTICES:
+        raise ValueError('copper polygon exceeds supported intersection-check limit')
+    if len(vertices) < 3:
+        raise ValueError('degenerate copper polygon')
+
+    def cross(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    if sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(vertices, vertices[1:] + vertices[:1])) == 0:
+        raise ValueError('degenerate copper polygon')
+    edges = list(zip(vertices, vertices[1:] + vertices[:1]))
+    for i, (a, b) in enumerate(edges):
+        c = vertices[(i + 2) % len(vertices)]
+        if cross(a, b, c) == 0 and sum((x - y) * (z - y) for x, y, z in zip(a, b, c)) > 0:
+            raise ValueError('overlapping copper polygon edges')
+        for j in range(i + 2, len(edges)):
+            if i == 0 and j == len(edges) - 1:
+                continue  # Adjacent edges may share their one common endpoint.
+            c, d = edges[j]
+            if any(
+                max(a[k], b[k]) < min(c[k], d[k]) or max(c[k], d[k]) < min(a[k], b[k])
+                for k in (0, 1)
+            ):
+                continue
+            ab = (cross(a, b, c), cross(a, b, d))
+            cd = (cross(c, d, a), cross(c, d, b))
+            if min(ab) <= 0 <= max(ab) and min(cd) <= 0 <= max(cd):
+                raise ValueError('self-intersecting or touching copper polygon')
 
 
 def numbers(text):

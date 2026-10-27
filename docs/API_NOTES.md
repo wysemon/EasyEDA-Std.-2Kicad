@@ -72,7 +72,7 @@ copper/paste/mask, silkscreen, assembly, Edge.Cuts and component shape User.3;
 exclude documentation, lead/marking user layers and text. Rotated pad extents
 are conservative; custom pads use actual transformed vertices. Arc bounds
 include only extrema on the arc, plus stroke width, not the full circle.
-KiCad 8/9 modern S-expressions use start/mid/end arcs. SVG circular arcs are
+KiCad 8/9/10 modern S-expressions use start/mid/end arcs. SVG circular arcs are
 converted through the SVG endpoint-to-center algorithm; elliptical arcs are
 sampled as polylines and reported. No third-party conversion source is copied.
 Filled SVG regions support a single straight-edged contour only. A second
@@ -85,6 +85,24 @@ Geometry that collapses at the existing six-decimal output precision is also
 empty; coordinate overflow fails rather than writing infinity into a library.
 Malformed copper text fails; missing coordinates, size, stroke, rotation or
 mirror flags cannot use decoration defaults to invent copper geometry.
+Essential copper TRACK/ARC/CIRCLE/TEXT widths must be explicit, finite, positive
+numbers that remain nonzero at output precision. They bypass the decoration
+stroke minimum, so valid narrow copper is not enlarged to 0.01 mm.
+Filled copper contours and custom-pad polygons reject self-intersections,
+nonadjacent contacts and overlapping/backtracking edges. A native KiCad 9
+EasyEDA import of the nonzero-area crossing `M0 0L4 4L0 4L4 0L5 -1Z`
+remains self-intersecting; neither signed area nor successful loading proves
+safe copper. The converter rejects ambiguity instead of guessing fill rules.
+Intersection checks use integer nanometres and at most 1,000 vertices, bounding
+the pairwise scan without a geometry dependency. Custom pads also require their
+serialized circular anchor to fit inside the source polygon; it cannot add
+copper outside the source. Genuine offset/custom-pad conventions remain limited.
+PAD/VIA/HOLE positions require explicit finite numeric coordinates; missing
+positions cannot become zero. When real slot-center points are supplied, they
+must agree with the supported centered, pad-axis-aligned drill within 0.001 mm
+of source rounding noise. Offset, independently angled or inconsistent slots
+fail rather than being recentered or resized. This does not implement those
+unverified drilling conventions.
 
 ## Unverified / bounded support
 
@@ -390,18 +408,22 @@ F.CrtYd; rear-side courtyard policy needs a genuine source comparison.
 
 ## Native integration and validation status
 
-The fast Python 3.11/3.12 Ubuntu/Windows matrix is unchanged. A separate native
-job installs KiCad from the team's `ppa:kicad/kicad-8.0-releases` repository on
-Ubuntu 24.04. The default Ubuntu repository supplies **7.0.11**, not KiCad 8;
-using it caused all 18 native tests to fail. The corrected job checks that both
-kicad-cli and pcbnew report major version 8 before running the tests.
+The Python 3.11/3.12 Ubuntu/Windows matrix remains. The native matrix installs
+KiCad 8, 9 and 10 from the team's `ppa:kicad/kicad-{major}.0-releases` PPAs on
+Ubuntu 24.04. The default Ubuntu repository supplies KiCad 7, so each job checks
+that both kicad-cli and pcbnew report the requested major before testing.
 `EE2KICAD_REQUIRE_KICAD=1` and `EE2KICAD_REQUIRE_PCBNEW=1` prevent silently
 skipping the required tools. No EasyEDA network requests run in CI.
 
-All 18 native cases pass on **8.0.9** in an isolated Ubuntu 24.04 environment,
-and on **9.0.2** on the development host. The geometry helper handles the
-versions' different GetEffectivePolygon APIs; no geometry assertions were
-relaxed to support 8. See `PR_FOLLOWUP.md` for reproduction and test results.
+All **27 native cases** pass separately on **8.0.9**, **9.0.9** and **10.0.7**
+in isolated Ubuntu 24.04 environments. Output stays at symbol version 20231120
+and footprint version 20240108, compatible with KiCad 8. The geometry helper
+handles the GetEffectivePolygon differences and KiCad 10's renamed FindPlugin
+factory. KiCad 10 saves blank pin names as empty strings and property hide flags
+outside effects; tests verify the same hidden/visible semantics and SVG labels.
+Its footprint SVG exporter requires an existing output directory. Geometry,
+drill, layer and text-angle assertions remain in force for every major.
+Native KiCad on Windows/macOS and manual GUI inspection are not verified.
 
 Explicit --validate now returns failure when KiCad is absent, fails or times
 out. Symbol and footprint results are separate, and both are attempted on

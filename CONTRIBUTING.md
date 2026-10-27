@@ -50,7 +50,7 @@ need tests of their own.
 
 ### Native KiCad checks
 
-With KiCad 8 or 9 installed and `kicad-cli` on PATH:
+With KiCad 8, 9 or 10 installed and `kicad-cli` on PATH:
 
 ```sh
 .venv/bin/python -m pytest -m "kicad and not live"
@@ -61,7 +61,7 @@ also need KiCad's Python `pcbnew` bindings. On Linux the suite can use the syste
 Python at `/usr/bin/python3` when the development venv cannot import them.
 These are test tools, not application dependencies.
 
-The dedicated CI job installs KiCad 8 from the KiCad team's maintained PPA and
+The native CI matrix installs KiCad 8/9/10 from the KiCad team's stable PPAs and
 verifies the CLI and binding versions. `EE2KICAD_REQUIRE_KICAD=1` and
 `EE2KICAD_REQUIRE_PCBNEW=1` make missing native tools fail the required checks.
 

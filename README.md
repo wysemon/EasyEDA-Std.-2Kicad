@@ -1,6 +1,6 @@
 # easyeda2kicad-local
 
-Paste a public **EasyEDA Standard** component link and get a KiCad 8/9 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
+Paste a public **EasyEDA Standard** component link and get a KiCad 8/9/10 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
 
 ## Quick start
 
@@ -109,7 +109,7 @@ Complete 2D libraries are skipped. New output has a hidden completion record; ol
 
 Use `convert` after updating the app to rebuild existing output offline. For older output, add the newly generated UUID-suffixed libraries in KiCad. `--force` downloads fresh component data and overwrites generated output.
 
-`--validate` runs KiCad's upgrade commands on temporary copies and reports PASS/FAIL. It leaves your originals untouched. Explicit `--validate` fails if `kicad-cli` is missing from PATH. Install KiCad 8/9 and add its command-line tools to PATH, then try again. This checks that KiCad can read the libraries; it does not check the design's electrical or manufacturing rules.
+`--validate` runs KiCad's upgrade commands on temporary copies and reports PASS/FAIL. It leaves your originals untouched. Explicit `--validate` fails if `kicad-cli` is missing from PATH. Install KiCad 8/9/10 and add its command-line tools to PATH, then try again. This checks that KiCad can read the libraries; it does not check the design's electrical or manufacturing rules.
 
 `--dry-run` uses a temporary directory and does not save output or change the log. Cached dry runs make no requests, even with `--force`. An uncached dry run may fetch component data.
 
@@ -155,7 +155,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 - Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols with nonempty `subparts` are rejected; unit 1 alone is not a complete component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
-- Filled SVG regions support one straight-edged contour. Compound fills, including holes, are rejected; separate stroked contours remain supported. Unknown plating flags, empty copper geometry and malformed or unsupported copper text fail the component before publication.
+- Filled SVG regions support one straight-edged contour. Compound fills, self-intersecting or touching copper contours, and custom pads whose anchor would add copper are rejected. Copper polygons are limited to 1,000 vertices to bound intersection checks. Separate stroked contours remain supported. Invalid copper widths, unknown plating flags, empty copper geometry and malformed or unsupported copper text fail the component before publication.
 - Real asymmetric pads and an oval USB-C slot now have source-to-native-KiCad checks. Some custom shapes, rear-side conventions and text placement still need real component comparisons.
 - Courtyards cover pads, holes and non-text body outlines, with 0.25 mm clearance. They are a starting point, not a clearance certification.
 - Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.
@@ -182,7 +182,7 @@ On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use do
 
 The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `ee2kicad --version` prints the installed version.
 
-Files target the KiCad 8/9 formats. Native checks pass with **KiCad 8.0.9** in an isolated Ubuntu 24.04 environment and **KiCad 9.0.2** on the development host. CI keeps the Python 3.11/3.12 Windows/Linux matrix and has a separate KiCad 8 job using the KiCad team’s maintained 8.0 PPA. That job verifies both CLI and Python binding versions before testing. See [the follow-up report](docs/PR_FOLLOWUP.md) for evidence and remaining limits.
+Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 27 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](docs/API_NOTES.md) for remaining geometry limits.
 
 To run just the native checks after installing KiCad:
 

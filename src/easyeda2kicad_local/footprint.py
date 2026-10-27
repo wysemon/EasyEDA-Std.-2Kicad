@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 
 from .bounds import courtyard
-from .geometry import point_pairs
+from .geometry import check_polygon, point_pairs
 from .shared import UNIT, effects, f, num, q, stroke, svg_graphics
 
 # Layer 11 is handled by pad parsing as all copper/mask layers. Unsupported
@@ -105,6 +105,22 @@ def parse_pad(raw, coords):
         raise ValueError('through-hole pad without drill')
     if through and num(t[13]) < 0:
         raise ValueError('negative drill-slot length')
+    hole_length = num(t[13]) * UNIT
+    if through and hole_length > 2 * radius + 0.01 and t[14] not in ('', 'undefined'):
+        centers = [coords.point(*p) for p in point_pairs(t[14])]
+        if len(centers) != 2:
+            raise ValueError('slot must have exactly two hole-center points')
+        cx, cy = ((a + b) / 2 for a, b in zip(*centers))
+        dx, dy = (b - a for a, b in zip(*centers))
+        axis = math.radians(-angle + (90 if w < h else 0))
+        # Source points are rounded; accept the verified sub-micrometre noise,
+        # but never silently center or reorient an offset/independent drill.
+        if (
+            math.hypot(cx - x, cy - y) > 0.001
+            or abs(math.hypot(dx, dy) + 2 * radius - hole_length) > 0.001
+            or abs(dx * math.sin(axis) - dy * math.cos(axis)) > 0.001
+        ):
+            raise ValueError('unsupported offset, independently angled or inconsistent slot')
     if through:
         # KiCad's native EasyEDA importer uses outer copper/mask only for NPTH.
         layers = '"*.Cu" "*.Mask"' if kind == 'thru_hole' else '"F.Cu" "B.Cu" "*.Mask"'
@@ -126,6 +142,22 @@ def parse_pad(raw, coords):
                     (px - x) * math.sin(a) + (py - y) * math.cos(a),
                 )
             )
+        check_polygon(polygon)
+        # KiCad adds a circular anchor at the pad origin. It must fit wholly
+        # inside the source polygon; otherwise the anchor invents extra copper.
+        vertices = [tuple(round(v, 6) for v in p) for p in polygon]
+        anchor_radius = float(f(min(w, h) / 4)) / 2
+        inside = False
+        for a, b in zip(vertices, vertices[1:] + vertices[:1]):
+            if (a[1] > 0) != (b[1] > 0) and a[0] - a[1] * (b[0] - a[0]) / (b[1] - a[1]) > 0:
+                inside = not inside
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            if dx or dy:
+                fraction = max(0, min(1, -(a[0] * dx + a[1] * dy) / (dx * dx + dy * dy)))
+                if math.hypot(a[0] + fraction * dx, a[1] + fraction * dy) < anchor_radius:
+                    raise ValueError('custom pad anchor extends outside source polygon')
+        if not inside:
+            raise ValueError('custom pad origin is outside source polygon')
     return Pad(
         t[8],
         x,
@@ -133,7 +165,7 @@ def parse_pad(raw, coords):
         w,
         h,
         2 * radius if through else 0,
-        num(t[13]) * UNIT,
+        hole_length,
         angle,
         shape,
         kind,
@@ -154,7 +186,7 @@ def footprint_graphic(raw, coords):
         if not any(a != b for a, b in zip(pts, pts[1:])):
             raise ValueError('empty track geometry')
         return [
-            f'(fp_line (start {a}) (end {b}) {stroke(width)} (layer {q(ln)}))'
+            f'(fp_line (start {a}) (end {b}) {stroke(width, minimum=0 if ln.endswith(".Cu") else 0.01)} (layer {q(ln)}))'
             for a, b in zip(pts, pts[1:])
         ]
     if kind == 'SOLIDREGION':
@@ -169,7 +201,7 @@ def footprint_graphic(raw, coords):
         return [
             f'(fp_text user {q(t[10])} (at {coords.xy(t[2], t[3])} {f(num(t[5]))}) '
             f'(layer {q(layer(t[7]))}) (effects (font (size {f(size)} {f(size)}) '
-            f'(thickness {f(max(0.01, num(t[4], 0.6) * UNIT))})){mirror}))'
+            f'(thickness {f(max(0 if layer(t[7]).endswith(".Cu") else 0.01, num(t[4], 0.6) * UNIT))})){mirror}))'
         ]
     if kind == 'CIRCLE':
         x, y, radius = num(t[1]), num(t[2]), num(t[3])
@@ -178,7 +210,7 @@ def footprint_graphic(raw, coords):
             raise ValueError('empty circle geometry')
         return [
             f'(fp_circle (center {center}) (end {end}) '
-            f'{stroke(num(t[4], 1) * UNIT)} (fill none) (layer {q(layer(t[5]))}))'
+            f'{stroke(num(t[4], 1) * UNIT, minimum=0 if layer(t[5]).endswith(".Cu") else 0.01)} (fill none) (layer {q(layer(t[5]))}))'
         ]
     if kind == 'RECT':
         x, y = num(t[1]), num(t[2])

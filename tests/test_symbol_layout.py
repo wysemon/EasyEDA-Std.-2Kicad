@@ -205,6 +205,8 @@ def test_cardinal_angles_survive_kicad_roundtrip(response, tmp_path):
     for prop in children(one(sexpr(copy.read_text()), 'symbol'), 'property'):
         if prop[1] in ('Reference', 'Value'):
             assert 'hide' not in one(prop, 'effects') and not children(one(prop, 'effects'), 'hide')
+            assert ['hide', 'yes'] not in prop
         else:
             hidden = one(prop, 'effects')
-            assert 'hide' in hidden or ['hide', 'yes'] in hidden
+            # KiCad 10 moves the flag out of effects onto the property itself.
+            assert 'hide' in hidden or ['hide', 'yes'] in hidden or ['hide', 'yes'] in prop

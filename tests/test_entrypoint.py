@@ -165,3 +165,14 @@ def test_version_entrypoint(monkeypatch, capsys):
 
     assert invoke_main(monkeypatch, ['--version']) == 0
     assert capsys.readouterr().out.strip() == f'easyeda2kicad-local {__version__}'
+
+
+def test_version_matches_project_and_installed_metadata():
+    import tomllib
+    from importlib.metadata import version
+    from pathlib import Path
+
+    from easyeda2kicad_local import __version__
+
+    project = tomllib.loads((Path(__file__).parents[1] / 'pyproject.toml').read_text())
+    assert project['project']['version'] == __version__ == version('easyeda2kicad-local')

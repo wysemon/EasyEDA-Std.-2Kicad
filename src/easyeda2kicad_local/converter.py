@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import tempfile
 from collections import Counter
 from dataclasses import dataclass
@@ -113,6 +114,15 @@ def convert_response(response, package=None, *, library_name=None):
             and fields[layer_index] in COPPER_LAYERS
         )
         try:
+            if kind in ('PAD', 'VIA', 'HOLE'):
+                indices = (2, 3) if kind == 'PAD' else (1, 2)
+                if not all(math.isfinite(float(fields[i])) for i in indices):
+                    raise ValueError('electrical coordinates must be explicit and finite')
+            if copper and kind in ('TRACK', 'ARC', 'CIRCLE', 'TEXT'):
+                index = 4 if kind in ('CIRCLE', 'TEXT') else 1
+                width = float(fields[index]) * UNIT
+                if not math.isfinite(width) or round(width, 6) <= 0:
+                    raise ValueError('copper stroke width must be explicit and positive')
             if kind == 'TEXT' and copper:
                 # Decoration defaults must not invent the size of copper lettering.
                 if any(fields[i] in ('', 'undefined') for i in (2, 3, 4, 5, 6, 9)):

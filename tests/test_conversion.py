@@ -84,12 +84,18 @@ def test_slot_rotation_polygon_and_smd(response):
     raw = next(s for s in data['shape'] if s.startswith('PAD~'))
     fields = raw.split('~')
     fields[13] = '8'
+    x, y = float(fields[2]), float(fields[3])
+    angle = math.radians(-float(fields[11]))
+    half_span = (8 - 2 * float(fields[9])) / 2
+    dx, dy = half_span * math.cos(angle), half_span * math.sin(angle)
+    fields[14] = f'{x - dx} {y - dy} {x + dx} {y + dy}'
     c = Coordinates(data)
     assert '(drill oval 2.032 0.999744)' in parse_pad('~'.join(fields), c).render()
     fields[6], fields[1] = '2', 'OVAL'
     pad = parse_pad('~'.join(fields), c)
     assert pad.kind == 'smd' and not pad.drill and 'B.Paste' in pad.layers
-    fields[1], fields[10] = 'POLYGON', '0 0 10 0 5 10'
+    # A custom pad's source polygon must contain its physical anchor.
+    fields[1], fields[10] = 'POLYGON', f'{x - 10} {y - 10} {x + 10} {y - 10} {x} {y + 10}'
     assert '(primitives (gr_poly' in parse_pad('~'.join(fields), c).render()
 
 
@@ -135,6 +141,7 @@ def test_kicad_imports(response, tmp_path):
         ('fp', tmp_path / 'libraries' / f'{c.name}.pretty'),
     ]:
         out = tmp_path / kind
+        out.mkdir()  # KiCad 10's footprint SVG exporter requires an existing directory.
         run = subprocess.run(
             [executable, kind, 'export', 'svg', '--output', str(out), str(source)],
             env=env,

@@ -15,7 +15,7 @@ def validate_libraries(folder: Path, name: str):
     executable = shutil.which('kicad-cli')
     if executable is None:
         print(
-            'Validation unavailable: install KiCad 8/9 and add kicad-cli to PATH, then retry --validate.'
+            'Validation unavailable: install KiCad 8/9/10 and add kicad-cli to PATH, then retry --validate.'
         )
         return False
     passed = True

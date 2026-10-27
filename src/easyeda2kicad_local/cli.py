@@ -131,7 +131,7 @@ def fetch(
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
     validate: Annotated[
         bool,
-        typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.'),
+        typer.Option('--validate', help='Require KiCad 8/9/10; validate copies before publishing.'),
     ] = False,
 ):
     """Fetch, cache and convert components sequentially."""
@@ -181,7 +181,7 @@ def convert(
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
     validate: Annotated[
         bool,
-        typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.'),
+        typer.Option('--validate', help='Require KiCad 8/9/10; validate copies before publishing.'),
     ] = False,
 ):
     """Re-convert cached data without any network requests."""

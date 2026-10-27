@@ -23,31 +23,36 @@ jobs:
       - run: python -m ruff check .
       - run: python -m ruff format --check .
   kicad:
-    # Ubuntu 24.04's default package is KiCad 7; use the KiCad team's 8.0 PPA.
-    # KiCad 9 is also exercised locally, not claimed as an additional CI matrix.
+    # Use one shared KiCad 8 output format, checked by each native major version.
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kicad: ['8', '9', '10']
     env:
       EE2KICAD_DISABLE_LIVE: '1'
       EE2KICAD_REQUIRE_KICAD: '1'
       EE2KICAD_REQUIRE_PCBNEW: '1'
+      EE2KICAD_EXPECT_MAJOR: ${{ matrix.kicad }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
-      - name: Install native KiCad 8 from the KiCad team's PPA
+      - name: Install native KiCad from the KiCad team's stable PPA
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends software-properties-common
-          sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases
+          sudo add-apt-repository --yes ppa:kicad/kicad-${{ matrix.kicad }}.0-releases
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends kicad
-      - name: Require KiCad 8 CLI and matching Python geometry bindings
+      - name: Require the requested CLI and matching Python geometry bindings
         run: |
           command -v kicad-cli
           /usr/bin/python3 - <<'PY'
           import re
+          import os
           import subprocess
           import pcbnew
           versions = {
@@ -56,8 +61,9 @@ jobs:
           }
           for kind, version in versions.items():
               print(f'KiCad {kind}: {version}', flush=True)
-              if int(re.search(r'\d+', version)[0]) != 8:
-                  raise SystemExit(f'Expected KiCad 8 {kind}, found {version}')
+              expected = int(os.environ['EE2KICAD_EXPECT_MAJOR'])
+              if int(re.search(r'\d+', version)[0]) != expected:
+                  raise SystemExit(f'Expected KiCad {expected} {kind}, found {version}')
           PY
       - run: python -m pip install -e ".[test]"
       - name: Offline native imports, upgrades, SVG and physical pad geometry

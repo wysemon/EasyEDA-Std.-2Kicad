@@ -126,14 +126,15 @@ def test_sx_hidden_name_survives_kicad_save_and_is_not_rendered(tmp_path):
     symbol = one(sexpr(source.read_text()), 'symbol')
     pins = [pin for unit in children(symbol, 'symbol') for pin in children(unit, 'pin')]
     hidden = next(pin for pin in pins if one(pin, 'number')[1] == '2')
-    assert one(hidden, 'name')[1] == '~'
+    # KiCad 10 saves its blank-name marker as an empty string; both render blank.
+    assert one(hidden, 'name')[1] in ('~', '')
     assert 'hide' not in one(one(hidden, 'number'), 'effects')
     metadata = next(
         prop for prop in children(symbol, 'property') if prop[1] == 'EasyEDA Hidden Pin Names'
     )
     assert json.loads(metadata[2]) == [{'number': '2', 'name': 'GND'}]
     effects = one(metadata, 'effects')
-    assert 'hide' in effects or ['hide', 'yes'] in effects
+    assert 'hide' in effects or ['hide', 'yes'] in effects or ['hide', 'yes'] in metadata
     svg_dir = tmp_path / 'svg'
     export = subprocess.run(
         [executable, 'sym', 'export', 'svg', '--output', str(svg_dir), str(source)],

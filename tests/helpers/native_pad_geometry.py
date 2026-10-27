@@ -50,11 +50,13 @@ def main():
             )
         return result
 
-    importer = pcbnew.PCB_IO_MGR.PluginFind(pcbnew.PCB_IO_MGR.EASYEDA)
+    # KiCad 10 renamed the factory; keep the same independent native loaders.
+    factory = pcbnew.PCB_IO_MGR.FindPlugin if major >= 10 else pcbnew.PCB_IO_MGR.PluginFind
+    importer = factory(pcbnew.PCB_IO_MGR.EASYEDA)
     source_fp = importer.FootprintLoad(str(source), 'orientation')
     assert source_fp is not None, 'Native EasyEDA importer returned no footprint'
     original = measure(source_fp)
-    loader = pcbnew.PCB_IO_MGR.PluginFind(pcbnew.PCB_IO_MGR.KICAD_SEXP)
+    loader = factory(pcbnew.PCB_IO_MGR.KICAD_SEXP)
     generated = loader.FootprintLoad(str(pretty), 'orientation')
     assert generated is not None, 'Native KiCad importer returned no footprint'
     print(json.dumps({'source': original, 'generated': measure(generated)}))

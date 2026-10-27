@@ -7,7 +7,7 @@ import re
 import unicodedata
 
 from .files import MAX_INPUT_BYTES
-from .geometry import path_segments
+from .geometry import check_polygon, path_segments
 
 log = logging.getLogger(__name__)
 # EasyEDA's drawing unit is 10 mil, irrespective of the editor's displayed grid.
@@ -139,8 +139,8 @@ class Coordinates:
         return ' '.join(map(f, self.point(x, y)))
 
 
-def stroke(width):
-    return f'(stroke (width {f(max(0.01, width))}) (type default))'
+def stroke(width, *, minimum=0.01):
+    return f'(stroke (width {f(max(minimum, width))}) (type default))'
 
 
 def fill(value):
@@ -153,7 +153,7 @@ def poly(points, width, symbol, layer_name='F.Fab', solid=False):
     pts = ' '.join(f'(xy {f(x)} {f(y)})' for x, y in points)
     if symbol:
         return f'(polyline (pts {pts}) {stroke(width)} (fill (type {"background" if solid else "none"})))'
-    return f'(fp_poly (pts {pts}) {stroke(width)} (fill {"solid" if solid else "none"}) (layer {q(layer_name)}))'
+    return f'(fp_poly (pts {pts}) {stroke(width, minimum=0 if layer_name.endswith(".Cu") else 0.01)} (fill {"solid" if solid else "none"}) (layer {q(layer_name)}))'
 
 
 def svg_graphics(path, coords, width, symbol, layer_name='F.Fab', solid=False):
@@ -171,6 +171,8 @@ def svg_graphics(path, coords, width, symbol, layer_name='F.Fab', solid=False):
         area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(local, local[1:] + local[:1]))
         if len(set(points)) < 3 or not math.isfinite(area) or area == 0:
             raise ValueError('empty or degenerate solid region')
+        if not symbol and layer_name.endswith('.Cu'):
+            check_polygon(points)
         return [poly(points, width, symbol, layer_name, True)]
     result = []
     for kind, pts in segments:
@@ -183,7 +185,7 @@ def svg_graphics(path, coords, width, symbol, layer_name='F.Fab', solid=False):
             start, mid, end = pts
             body = (
                 f'(start {f(start[0])} {f(start[1])}) '
-                f'(mid {f(mid[0])} {f(mid[1])}) (end {f(end[0])} {f(end[1])}) {stroke(width)}'
+                f'(mid {f(mid[0])} {f(mid[1])}) (end {f(end[0])} {f(end[1])}) {stroke(width, minimum=0 if not symbol and layer_name.endswith(".Cu") else 0.01)}'
             )
             result.append(
                 f'(arc {body} (fill (type none)))'
@@ -193,7 +195,7 @@ def svg_graphics(path, coords, width, symbol, layer_name='F.Fab', solid=False):
         elif kind == 'line' and not symbol:
             result.append(
                 f'(fp_line (start {f(pts[0][0])} {f(pts[0][1])}) '
-                f'(end {f(pts[1][0])} {f(pts[1][1])}) {stroke(width)} (layer {q(layer_name)}))'
+                f'(end {f(pts[1][0])} {f(pts[1][1])}) {stroke(width, minimum=0 if layer_name.endswith(".Cu") else 0.01)} (layer {q(layer_name)}))'
             )
         else:
             if kind == 'ellipse':
