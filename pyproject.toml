@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
+# SPDX license expressions need the PEP 639 support in this backend series.
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
