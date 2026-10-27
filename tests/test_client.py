@@ -85,6 +85,24 @@ def test_redirect_not_followed():
     assert len(calls) == 1
 
 
+def test_redirects_disabled_even_for_supplied_redirect_following_client():
+    calls = []
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(302, headers={'Location': 'https://third-party.test/private'})
+    http = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
+    with EasyEDAClient(client=http, sleep=lambda _: None) as client, pytest.raises(FetchError, match='redirects'):
+        client.component(NEW)
+    assert len(calls) == 1 and calls[0].url.host == 'easyeda.com'
+
+
+def test_nan_retry_after_keeps_normal_backoff():
+    client, clock, calls = make_client([503, 200], {'Retry-After': 'NaN'})
+    with client:
+        client.component(NEW)
+    assert clock.sleeps == [0., 30.] and len(calls) == 2
+
+
 def test_reject_destination():
     client, clock, calls = make_client([])
     with client, pytest.raises(FetchError, match='Refusing'):
