@@ -111,6 +111,7 @@ def test_credits_official(response):
     assert 'JLCEDA/EasyEDA Official Library' in convert_response(response).credits
 
 
+@pytest.mark.kicad
 def test_kicad_imports(response, tmp_path):
     executable = shutil.which('kicad-cli')
     if not executable:

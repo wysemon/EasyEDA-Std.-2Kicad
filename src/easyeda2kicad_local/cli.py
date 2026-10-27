@@ -107,7 +107,7 @@ def fetch(
     delay: Annotated[float, typer.Option('--delay', min=1., help='At least 1 second between requests, plus 0–2s jitter.')] = 4.,
     dry_run: Annotated[bool, typer.Option('--dry-run')] = False,
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
-    validate: Annotated[bool, typer.Option('--validate', help='Run KiCad upgrades on temporary copies.')] = False,
+    validate: Annotated[bool, typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.')] = False,
 ):
     """Fetch, cache and convert components sequentially."""
     configure_console()
@@ -137,7 +137,7 @@ def convert(
     output: Annotated[Path, typer.Option('--output', '-o')] = Path('output'),
     dry_run: Annotated[bool, typer.Option('--dry-run')] = False,
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
-    validate: Annotated[bool, typer.Option('--validate', help='Run KiCad upgrades on temporary copies.')] = False,
+    validate: Annotated[bool, typer.Option('--validate', help='Require KiCad 8/9; validate copies before publishing.')] = False,
 ):
     """Re-convert cached data without any network requests."""
     configure_console()

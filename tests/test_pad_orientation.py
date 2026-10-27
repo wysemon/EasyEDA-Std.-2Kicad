@@ -32,7 +32,7 @@ def world_vertices(pad):
              pad.y + x * math.sin(a) + y * math.cos(a)) for x, y in pad.polygon]
 
 
-@pytest.mark.parametrize('case,raw', CASES)
+@pytest.mark.parametrize('case,raw', CASES, ids=[r.split('~')[12] for c, r in CASES])
 def test_real_rectangles_and_slots_match_source_vertices(case, raw):
     coords = Coordinates(document(case, raw))
     pad = parse_pad(raw, coords)
@@ -88,7 +88,8 @@ def pcbnew_python():
 
 
 @pytest.mark.kicad
-@pytest.mark.parametrize('case,raw,calibration', NATIVE_CASES)
+@pytest.mark.parametrize('case,raw,calibration', NATIVE_CASES,
+                         ids=[f'{kind}-{raw.split("~")[12]}' for case, raw, kind in NATIVE_CASES])
 def test_native_easyeda_and_kicad_geometry_agree(case, raw, calibration, pcbnew_python, tmp_path):
     fields = raw.split('~')
     if calibration == 'custom-derived':

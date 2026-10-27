@@ -147,6 +147,7 @@ def test_text_envelope_clears_labels_above_body(response):
     assert one(value, 'at')[1] == one(original_value, 'at')[1]
 
 
+@pytest.mark.kicad
 def test_cardinal_angles_survive_kicad_roundtrip(response, tmp_path):
     executable = shutil.which('kicad-cli')
     if not executable:

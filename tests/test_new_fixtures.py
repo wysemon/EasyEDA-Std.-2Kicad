@@ -91,11 +91,13 @@ def test_oled_license_copied_verbatim():
 
 
 @pytest.mark.parametrize('uuid', [OLED, SX])
+@pytest.mark.kicad
 def test_new_fixture_kicad_validation(uuid, tmp_path):
     c = write_conversion(load(uuid), tmp_path)
     assert validate_libraries(tmp_path, c.name)
 
 
+@pytest.mark.kicad
 def test_sx_hidden_name_survives_kicad_save_and_is_not_rendered(tmp_path):
     executable = shutil.which('kicad-cli')
     if not executable:

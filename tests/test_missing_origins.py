@@ -87,6 +87,7 @@ def test_unrecoverable_origin_fails_without_guessing():
 
 
 @pytest.mark.parametrize('uuid', ESP32_IDS)
+@pytest.mark.kicad
 def test_kicad_import_preserves_near_origin_geometry(uuid, tmp_path):
     executable = shutil.which('kicad-cli')
     if not executable:

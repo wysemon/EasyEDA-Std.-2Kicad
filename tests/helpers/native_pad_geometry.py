@@ -1,6 +1,7 @@
 """Measure source and generated pads using KiCad's independent importers."""
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -12,6 +13,7 @@ def main():
         location.mkdir(exist_ok=True)
         os.environ[key] = str(location)
     import pcbnew
+    major = int(re.search(r'\d+', pcbnew.GetBuildVersion())[0])
 
     def point(v):
         return [pcbnew.ToMM(v.x), pcbnew.ToMM(v.y)]
@@ -19,18 +21,20 @@ def main():
     def measure(fp):
         result = []
         for pad in fp.Pads():
-            polygon = pad.GetEffectivePolygon(pad.GetLayer())
+            # KiCad 9 added the layer argument; KiCad 8's optional argument
+            # instead selects polygon approximation error, not a copper layer.
+            polygon = pad.GetEffectivePolygon(pad.GetLayer()) if major >= 9 else pad.GetEffectivePolygon()
             outline = polygon.COutline(0)
             points = [point(outline.CPoint(i)) for i in range(outline.PointCount())]
             drill_box = None
-            if pad.HasDrilledHole():
+            if pad.HasHole():
                 hole = pad.GetEffectiveHoleShape()
                 box = hole.BBox()
                 drill_box = point(box.GetSize())
             result.append({'number': pad.GetNumber(), 'at': point(pad.GetPosition()),
                            'angle': pad.GetOrientationDegrees(), 'size': point(pad.GetSize()),
                            'drill': point(pad.GetDrillSize()), 'hole_bounds': drill_box,
-                           'layers': [pcbnew.LayerName(i) for i in pad.GetLayerSet().Seq()],
+                           'layers': list(pad.GetLayerSet().Seq()),
                            'outline': points})
         return result
 
