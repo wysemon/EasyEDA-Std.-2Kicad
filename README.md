@@ -2,11 +2,11 @@
 
 Paste a public **EasyEDA Standard** component link and get a KiCad 8/9/10 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
 
-## Quick start
+## Quick start 🚀
 
 You need [Git](https://git-scm.com/downloads) and [Python 3.11 or newer](https://www.python.org/downloads/). On Windows, enable **Add Python to PATH** during installation.
 
-Open a terminal and run these three commands.
+Open a terminal and use the three commands for your system below.
 
 **Windows CMD:**
 
@@ -34,7 +34,7 @@ Run `run` on Windows or `./run.sh` on Linux/macOS without arguments. Paste one l
 
 If you already have a `links.txt` file, the app asks whether to use it. Press Enter for yes. The file accepts one link or UUID per line, with blank lines and `#` comments allowed.
 
-## Import into KiCad
+## Import into KiCad 🔌
 
 Use the **full paths printed at the end of the run**:
 
@@ -141,7 +141,7 @@ The launchers pass this location through `EE2KICAD_CWD`. Installed console comma
 | Dependencies need refreshing | Changes to `pyproject.toml` trigger this automatically. Delete `.venv/.ee2kicad-ready` to force a refresh. |
 | Windows path is too long | Keep the checkout and output paths short. Sanitized titles use at most 60 ASCII characters, followed by `_uuid8`. |
 
-## Be a polite client
+## Be a polite client 🤝
 
 The app deliberately pauses between requests. The default is **4 seconds plus 0–2 seconds of random jitter**, including retries and footprint lookups. Requests use one client and run sequentially. Caching avoids repeat downloads.
 
