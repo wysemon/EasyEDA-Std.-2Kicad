@@ -167,3 +167,11 @@ see each generated CREDITS.txt.
 
 `ee2kicad --version` prints the installed application version. Developers can
 run `.venv/bin/python -m ruff check .` (Windows: `.venv\Scripts\python -m ruff check .`).
+
+### Optional live smoke test
+
+`pytest -m live` opts into fetching exactly one public component through the
+normal paced client, including its retry/stop rules. It makes no search,
+footprint fallback, or model requests and writes no output files. The normal
+suite deselects it. CI never runs it; `CI` or `EE2KICAD_DISABLE_LIVE` also forces
+a skip even with `-m live`. The offline suite continues to block HTTP requests.

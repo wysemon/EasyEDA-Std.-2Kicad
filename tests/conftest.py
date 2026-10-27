@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -14,8 +15,13 @@ def response(request):
 
 
 @pytest.fixture(autouse=True)
-def no_live_network(monkeypatch):
+def no_live_network(monkeypatch, request):
     import httpx
+
+    if request.node.get_closest_marker('live'):
+        if os.environ.get('CI') or os.environ.get('EE2KICAD_DISABLE_LIVE'):
+            pytest.skip('Live network tests are disabled in CI and by EE2KICAD_DISABLE_LIVE')
+        return
 
     def refuse(*args, **kwargs):
         raise AssertionError('Live HTTP is forbidden in tests')

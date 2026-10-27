@@ -227,3 +227,11 @@ Live smoke tests are explicitly excluded and disabled in CI.
 Library names are now `safe_name(title) + "_" + uuid[:8]`. This applies to
 symbol/footprint library filenames, internal names and the Footprint property.
 Component output folder names already followed this scheme and remain stable.
+
+## Optional live smoke check
+
+`pytest -m live` selects one smoke test and one public component UUID, using
+EasyEDAClient's default pacing and bounded retries. No search, package fallback
+or 3D request is made. It checks the response and in-memory conversion. The
+normal pytest selection is `not live`; CI explicitly excludes live tests and
+the network fixture skips them whenever CI or EE2KICAD_DISABLE_LIVE is set.
