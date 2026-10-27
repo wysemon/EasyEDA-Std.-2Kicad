@@ -12,7 +12,7 @@ from .geometry import numbers, path_segments
 
 log = logging.getLogger(__name__)
 UNIT = .254
-DRAWING_TEXT_SIZE = 75 * .0254  # 75 mil, in KiCad millimetres
+SYMBOL_TEXT_SIZE_CAP = 75 * .0254  # 75 mil, in KiCad millimetres
 LAYERS = {'1': 'F.Cu', '2': 'B.Cu', '3': 'F.SilkS', '4': 'B.SilkS',
           '5': 'F.Paste', '6': 'B.Paste', '7': 'F.Mask', '8': 'B.Mask',
           '10': 'Edge.Cuts', '12': 'F.Fab', '13': 'F.Fab', '14': 'B.Fab',
@@ -187,8 +187,9 @@ def symbol_graphic(raw, coords):
         wi, fi = (6, 8) if kind == 'E' else (5, 7)
         return [f'(circle (center {coords.xy(x, y)}) (radius {f(rx * UNIT)}) {stroke(num(t[wi], 1) * UNIT)} {fill(t[fi])})']
     if kind == 'T':
+        size = min(num(t[7], 9) * 25.4 / 72, SYMBOL_TEXT_SIZE_CAP)
         return [f'(text {q(t[12])} (at {coords.xy(t[2], t[3])} {symbol_text_angle(t[4])}) '
-                f'{effects(DRAWING_TEXT_SIZE)})']
+                f'{effects(size)})']
     if kind in ('PL', 'PG'):
         ns = numbers(t[1])
         points = [coords.point(x, y) for x, y in zip(ns[::2], ns[1::2])]
@@ -338,7 +339,7 @@ def footprint_graphic(raw, coords):
         return svg_graphics(t[3], coords, .01, False, layer(t[1]), solid=True)
     if kind == 'TEXT':
         mirror = ' (justify mirror)' if t[6] == '1' else ''
-        size = DRAWING_TEXT_SIZE
+        size = num(t[9], 5) * UNIT
         return [f'(fp_text user {q(t[10])} (at {coords.xy(t[2], t[3])} {f(num(t[5]))}) '
                 f'(layer {q(layer(t[7]))}) (effects (font (size {f(size)} {f(size)}) '
                 f'(thickness {f(max(.01, num(t[4], .6) * UNIT))})){mirror}))']

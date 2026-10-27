@@ -131,10 +131,17 @@ source, author and other metadata remain stored.
 
 The footprint declares KiCad 8 version `20240108` and emits `property "Reference"`
 and `property "Value"`, rather than legacy `fp_text reference/value` records.
-User drawing labels remain `fp_text user`. Both symbol T drawing text and
-footprint TEXT drawing labels now use **75 mil = 1.905 mm**, irrespective of the
-source font size. Property and pin-label fonts stay at 1.27 mm. The symbol's
-text envelope uses the actual exported size when placing Reference/Value.
+User drawing labels remain `fp_text user`. Only symbol T graphic text is
+capped: `min(source points * 25.4 / 72, 1.905)` mm (**75 mil**). Empty or
+`undefined` symbol font sizes keep the existing 9 pt fallback before the cap.
+Smaller symbol text is preserved. Footprint TEXT height remains source field 9
+times 0.254 mm, with the existing 5-unit fallback; no cap applies. Property and
+pin-label fonts stay at 1.27 mm. The symbol's text envelope uses the actual
+exported size when placing Reference/Value.
+
+MAX98357A symbol sizes before/after the cap (mm): SPKR 3.175 (missing size,
+9 pt fallback) → 1.905; I2S MONO AMP 2.293056 (6.5 pt) → 1.905;
+MAX98357A 2.822222 (8 pt) → 1.905.
 
 **EasyEDA pad/text rotation sign and slot orientation remain unverified.**
 The old fixture has circular round pads at 180 degrees. The newer fixture has

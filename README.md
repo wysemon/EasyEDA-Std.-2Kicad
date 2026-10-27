@@ -38,7 +38,8 @@ Use the **exact absolute paths printed at the end of the run**.
 
 The symbol already has a `library:name` Footprint property.
 Only Reference and Value properties are visible. Attribution and source metadata stay stored but hidden.
-Drawing text is fixed at 75 mil (1.905 mm). Property and pin-label sizes stay at 1.27 mm.
+Symbol graphic text is capped at 75 mil (1.905 mm); smaller source text stays smaller.
+Footprint drawing text keeps its source sizes. Property and pin-label sizes stay at 1.27 mm.
 Footprint Reference/Value use KiCad 8 `property` records.
 
 ## Example

@@ -187,10 +187,18 @@ def test_modern_footprint_properties_and_text_size(response):
     assert not [p for p in children(fp, 'fp_text') if p[1] in ('reference', 'value')]
     for prop in properties.values():
         assert list(map(float, one(one(one(prop, 'effects'), 'font'), 'size')[1:])) == [1.27, 1.27]
-    drawing = texts(converted.symbol) + children(fp, 'fp_text')
+    drawing = texts(converted.symbol)
     assert drawing
     for text in drawing:
         assert list(map(float, one(one(one(text, 'effects'), 'font'), 'size')[1:])) == [1.905, 1.905]
+    source_text = [line.split('~') for line in response['result']['packageDetail']['dataStr']['shape']
+                   if line.startswith('TEXT~')]
+    exported_text = children(fp, 'fp_text')
+    assert len(source_text) == len(exported_text) > 0
+    for source, text in zip(source_text, exported_text):
+        assert text[2] == source[10]
+        size = list(map(float, one(one(one(text, 'effects'), 'font'), 'size')[1:]))
+        assert size == pytest.approx([float(source[9]) * .254] * 2)
     # Both pin-name and pin-number fonts retain their original property size.
     for unit in children(one(sexpr(converted.symbol), 'symbol'), 'symbol'):
         for pin in children(unit, 'pin'):
@@ -206,3 +214,34 @@ def test_rotation_slot_verification_is_documented(response):
     assert all(float(p[13]) - 2 * float(p[9]) <= .0011 for p in pads)
     notes = (Path(__file__).parents[1] / 'docs/API_NOTES.md').read_text()
     assert 'rotation sign and slot orientation remain unverified' in notes
+
+
+@pytest.mark.parametrize('source,expected', [('3pt', 1.058333), ('5.4pt', 1.905), ('9pt', 1.905),
+                                           ('', 1.905), ('undefined', 1.905)])
+def test_symbol_graphic_text_cap_preserves_smaller_sizes(response, source, expected):
+    for index, raw in enumerate(response['result']['dataStr']['shape']):
+        if raw.startswith('T~'):
+            fields = raw.split('~')
+            fields[7] = source
+            response['result']['dataStr']['shape'][index] = '~'.join(fields)
+    nodes = texts(convert_response(response).symbol)
+    assert nodes
+    for node in nodes:
+        actual = list(map(float, one(one(one(node, 'effects'), 'font'), 'size')[1:]))
+        assert actual == pytest.approx([expected, expected], abs=1e-6)
+
+
+@pytest.mark.parametrize('source,expected', [('3.2', .8128), ('5', 1.27), ('10', 2.54),
+                                           ('', 1.27), ('undefined', 1.27)])
+def test_footprint_drawing_text_preserves_source_sizes_without_cap(response, source, expected):
+    data = response['result']['packageDetail']['dataStr']
+    for index, raw in enumerate(data['shape']):
+        if raw.startswith('TEXT~'):
+            fields = raw.split('~')
+            fields[9] = source
+            data['shape'][index] = '~'.join(fields)
+    nodes = children(sexpr(convert_response(response).footprint), 'fp_text')
+    assert nodes
+    for node in nodes:
+        actual = list(map(float, one(one(one(node, 'effects'), 'font'), 'size')[1:]))
+        assert actual == pytest.approx([expected, expected], abs=1e-6)
