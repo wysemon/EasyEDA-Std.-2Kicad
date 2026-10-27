@@ -4,10 +4,19 @@ import math
 import re
 
 NUMBER = r'[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?'
+MAX_GEOMETRY_CHARS = 1_000_000
+MAX_GEOMETRY_POINTS = 100_000
 
 
 def numbers(text):
-    return [float(n) for n in re.findall(NUMBER, text)]
+    if len(text) > MAX_GEOMETRY_CHARS:
+        raise ValueError('geometry text exceeds supported size')
+    values = []
+    for match in re.finditer(NUMBER, text):
+        if len(values) >= 2 * MAX_GEOMETRY_POINTS:
+            raise ValueError('geometry exceeds supported point count')
+        values.append(float(match[0]))
+    return values
 
 
 def point_pairs(text, minimum=2):
@@ -70,9 +79,20 @@ def arc_points(start, values):
     return result
 
 
-def path_segments(path):
+def path_segments(path, *, single_contour=False):
     """Yield (line|arc|ellipse, points) for M/L/H/V/A/Z. Reject other commands."""
+    if len(path) > MAX_GEOMETRY_CHARS:
+        raise ValueError('SVG path exceeds supported size')
     i, command, point, origin = 0, None, (0.0, 0.0), (0.0, 0.0)
+    moves = point_count = 0
+    closed = False
+
+    def checked(kind, pts):
+        nonlocal point_count
+        point_count += len(pts)
+        if point_count > MAX_GEOMETRY_POINTS:
+            raise ValueError('SVG path exceeds supported point count')
+        return kind, pts
 
     def skip_separators():
         nonlocal i
@@ -93,7 +113,10 @@ def path_segments(path):
         if not match:
             raise ValueError('incomplete or invalid SVG coordinate')
         i = match.end()
-        return float(match[0])
+        value = float(match[0])
+        if not math.isfinite(value):
+            raise ValueError('nonfinite SVG coordinate')
+        return value
 
     while True:
         skip_separators()
@@ -105,10 +128,13 @@ def path_segments(path):
         if command is None:
             raise ValueError('path has no command')
         upper = command.upper()
+        if single_contour and closed:
+            raise ValueError('compound filled SVG regions are unsupported')
         if upper == 'Z':
             if point != origin:
-                yield 'line', [point, origin]
+                yield checked('line', [point, origin])
             point, command = origin, None
+            closed = True
             continue
         count = {'M': 2, 'L': 2, 'H': 1, 'V': 1, 'A': 7}.get(upper)
         if count is None:
@@ -129,12 +155,15 @@ def path_segments(path):
                 values[-2] += point[0]
                 values[-1] += point[1]
             pts = arc_points(point, values)
-            yield ('arc' if len(pts) == 3 else 'ellipse'), pts
+            yield checked('arc' if len(pts) == 3 else 'ellipse', pts)
             point = pts[-1]
             continue
         if upper == 'M':
+            moves += 1
+            if single_contour and moves > 1:
+                raise ValueError('compound filled SVG regions are unsupported')
             origin = end
             command = 'l' if relative else 'L'
         else:
-            yield 'line', [point, end]
+            yield checked('line', [point, end])
         point = end

@@ -90,7 +90,7 @@ def test_friendly_network_failure(monkeypatch, tmp_path, capsys, verbose):
     def fail(self, *a, **kwargs):
         raise httpx.ConnectError('offline')
 
-    monkeypatch.setattr('httpx.Client.get', fail)
+    monkeypatch.setattr('httpx.HTTPTransport.handle_request', fail)
     args = [NEW, '-o', str(tmp_path)] + (['--verbose'] if verbose else [])
     assert invoke_main(monkeypatch, args) == 1
     error = capsys.readouterr().err

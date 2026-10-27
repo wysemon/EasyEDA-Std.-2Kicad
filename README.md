@@ -43,7 +43,7 @@ Use the **full paths printed at the end of the run**:
 3. Give both libraries the generated name, such as `MAX98357A_NO_HOLES_7db93ef9`.
 4. In the Schematic Editor, press **A**, find the symbol, and place it.
 
-The symbol already points to the matching footprint. Library names include the first eight characters of the component UUID so components with the same title have different names.
+The symbol already points to the matching footprint. Library names include the first eight characters of the component UUID to distinguish matching titles. If two full UUIDs still produce the same output name, the app stops that item and keeps the existing folder. Choose a different `--output` folder for the other component.
 
 Only Reference and Value are shown as properties. Source information, authors and other metadata remain stored but hidden. Symbol drawing text is capped at 75 mil (1.905 mm); smaller text stays smaller. Footprint drawing text keeps the source sizes. Pin labels and Reference/Value use 1.27 mm.
 
@@ -105,7 +105,7 @@ run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
 
 ### Caching and validation
 
-Complete 2D libraries are skipped. New output has a hidden completion record; older output is checked against the cached pin and pad counts. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
+Complete 2D libraries are skipped. New output has a hidden completion record; older output is checked against the cached pin and pad counts. Completion also requires matching full UUIDs in the cache, completion record and symbol, with matching symbol/footprint names. Identity conflicts fail without replacing existing files, even with `--force`. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
 
 Use `convert` after updating the app to rebuild existing output offline. For older output, add the newly generated UUID-suffixed libraries in KiCad. `--force` downloads fresh component data and overwrites generated output.
 
@@ -155,6 +155,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 - Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols with nonempty `subparts` are rejected; unit 1 alone is not a complete component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
+- Filled SVG regions support one straight-edged contour. Compound fills, including holes, are rejected; separate stroked contours remain supported. Unknown plating flags, empty copper geometry and malformed or unsupported copper text fail the component before publication.
 - Real asymmetric pads and an oval USB-C slot now have source-to-native-KiCad checks. Some custom shapes, rear-side conventions and text placement still need real component comparisons.
 - Courtyards cover pads, holes and non-text body outlines, with 0.25 mm clearance. They are a starting point, not a clearance certification.
 - Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.

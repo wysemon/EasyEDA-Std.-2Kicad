@@ -15,7 +15,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from .files import atomic_write
+from .client import UUID
+from .files import atomic_write, read_limited
 from .sexpr import children, contains, descendants, loads
 
 log = logging.getLogger(__name__)
@@ -24,7 +25,51 @@ PENDING = '.ee2kicad-pending.json'
 
 
 def digest(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(read_limited(path)).hexdigest()
+
+
+def component_uuid(value):
+    if not isinstance(value, str) or not UUID.fullmatch(value):
+        raise ValueError('invalid component UUID in cache metadata')
+    return value.lower()
+
+
+def check_identity(folder, uuid, *, name=None):
+    """Never authorize a replacement using a different component's cache/marker."""
+    expected = component_uuid(uuid)
+    for metadata_name in ('raw.json', COMPLETE):
+        path = folder / metadata_name
+        if path.exists():
+            data = json.loads(read_limited(path))
+            stored = data['result']['uuid'] if metadata_name == 'raw.json' else data['uuid']
+            if component_uuid(stored) != expected:
+                raise ValueError(
+                    f'Output identity conflict in {path}; inspect it or choose a different --output folder'
+                )
+    if name is not None:
+        path = folder / f'{name}.kicad_sym'
+        if path.exists():
+            try:
+                stored = symbol_uuid(loads(read_limited(path).decode('utf-8')))
+            except ValueError:
+                # Damaged libraries still use the existing backup/ownership guard.
+                return
+            if stored != expected:
+                raise ValueError(
+                    f'Output identity conflict in {path}; choose a different --output folder'
+                )
+
+
+def symbol_uuid(tree):
+    ids = [
+        p[2]
+        for symbol in children(tree, 'symbol')
+        for p in children(symbol, 'property')
+        if p[1] == 'EasyEDA UUID'
+    ]
+    if len(ids) != 1:
+        raise ValueError('missing or ambiguous symbol UUID')
+    return component_uuid(ids[0])
 
 
 def local_path(folder, relative):
@@ -41,7 +86,7 @@ def local_path(folder, relative):
 
 def footprint_has_model(path):
     """Detect an actual model node, ignoring the same word inside quoted text."""
-    return contains(loads(path.read_text(encoding='utf-8')), 'model')
+    return contains(loads(read_limited(path).decode('utf-8')), 'model')
 
 
 def source_counts(folder):
@@ -53,14 +98,14 @@ def source_counts(folder):
     raw = folder / 'raw.json'
     if not raw.exists():
         return None
-    result = json.loads(raw.read_bytes())['result']
+    result = json.loads(read_limited(raw))['result']
     symbol = result['dataStr']
     symbol = json.loads(symbol) if isinstance(symbol, str) else symbol
     if symbol.get('subparts'):
         raise ValueError('multi-unit cache is incomplete')
     package = result.get('packageDetail')
     if not package:
-        package = json.loads((folder / 'package_raw.json').read_bytes())['result']
+        package = json.loads(read_limited(folder / 'package_raw.json'))['result']
     footprint = package['dataStr']
     footprint = json.loads(footprint) if isinstance(footprint, str) else footprint
     pins = sum(raw.split('~', 1)[0] == 'P' for raw in symbol['shape'])
@@ -70,9 +115,9 @@ def source_counts(folder):
     return pins, pads
 
 
-def valid_library(path, symbol=False, expected=None):
+def valid_library(path, symbol=False, expected=None, uuid=None):
     """Check essential structure; native format acceptance needs --validate."""
-    tree = loads(path.read_text(encoding='utf-8'))
+    tree = loads(read_limited(path).decode('utf-8'))
 
     def numeric(node, kind, counts):
         fields = children(node, kind)
@@ -84,6 +129,14 @@ def valid_library(path, symbol=False, expected=None):
         return values
 
     if symbol:
+        symbols = children(tree, 'symbol')
+        if len(symbols) != 1 or symbols[0][1] != path.stem:
+            return False
+        if uuid is not None and symbol_uuid(tree) != uuid:
+            return False
+        footprints = [p[2] for p in children(symbols[0], 'property') if p[1] == 'Footprint']
+        if footprints != [f'{path.stem}:{path.stem}']:
+            return False
         pins = list(descendants(tree, 'pin'))
         if expected is not None and len(pins) != expected:
             return False
@@ -92,6 +145,8 @@ def valid_library(path, symbol=False, expected=None):
             if numeric(pin, 'length', (1,))[0] <= 0 or not children(pin, 'number')[0][1]:
                 return False
         return tree[0] == 'kicad_symbol_lib' and bool(pins)
+    if tree[1] != path.stem or path.parent.name != f'{path.stem}.pretty':
+        return False
     pads = children(tree, 'pad')
     if expected is not None and len(pads) != expected:
         return False
@@ -108,7 +163,7 @@ def valid_library(path, symbol=False, expected=None):
     return tree[0] in ('footprint', 'module') and bool(pads) and not contains(tree, 'model')
 
 
-def libraries_complete(folder):
+def libraries_complete(folder, *, expected_uuid=None):
     """Check committed hashes; accept structurally usable pre-manifest 2D output."""
     if (folder / PENDING).exists():
         return False
@@ -116,9 +171,10 @@ def libraries_complete(folder):
         counts = source_counts(folder)
         manifest = folder / COMPLETE
         if manifest.exists():
-            data = json.loads(manifest.read_bytes())
+            data = json.loads(read_limited(manifest))
             if data['version'] != 1 or not isinstance(data['files'], dict):
                 return False
+            uuid = component_uuid(data['uuid'])
             paths = [local_path(folder, name) for name in data['files']]
             if not all(
                 p.is_file() and digest(p) == data['files'][p.relative_to(folder).as_posix()]
@@ -132,9 +188,16 @@ def libraries_complete(folder):
             footprints = list(folder.glob('*.pretty/*.kicad_mod'))
             if any(not s.with_suffix('.pretty').is_dir() for s in symbols):
                 return False
+            uuid = symbol_uuid(loads(read_limited(symbols[0]).decode('utf-8'))) if symbols else None
+        if expected_uuid is not None and component_uuid(expected_uuid) != uuid:
+            return False
+        if uuid is not None:
+            check_identity(folder, uuid)
+        paired = {p.stem for p in symbols}
         return (
             bool(symbols and footprints)
-            and all(valid_library(p, True, counts[0] if counts else None) for p in symbols)
+            and paired == {p.stem for p in footprints}
+            and all(valid_library(p, True, counts[0] if counts else None, uuid) for p in symbols)
             and all(valid_library(p, False, counts[1] if counts else None) for p in footprints)
         )
     except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):

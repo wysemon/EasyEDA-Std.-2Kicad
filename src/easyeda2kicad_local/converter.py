@@ -13,7 +13,7 @@ from .client import UUID
 # Implementations live in focused modules; callers need not change imports.
 from .credits import owner as owner
 from .credits import render_credits
-from .files import atomic_write
+from .files import atomic_write, read_limited
 from .footprint import LAYERS as LAYERS
 from .footprint import Pad as Pad
 from .footprint import footprint_graphic as footprint_graphic
@@ -21,6 +21,7 @@ from .footprint import layer as layer
 from .footprint import parse_pad as parse_pad
 from .footprint import render_footprint
 from .publication import (
+    check_identity,
     digest,
     footprint_has_model,
     libraries_complete,
@@ -58,6 +59,7 @@ log = logging.getLogger(__name__)
 # Inner copper is recognized as electrical even where its export is unsupported:
 # an unmapped copper record must fail instead of disappearing as decoration.
 COPPER_LAYERS = {'1', '2', '11', *(str(i) for i in range(21, 53))}
+MAX_PRIMITIVES = 100_000
 
 
 @dataclass
@@ -97,23 +99,41 @@ def convert_response(response, package=None, *, library_name=None):
     for raw in fp.get('shape', []):
         fields = raw.split('~')
         kind = fields[0]
-        layer_index = {'TRACK': 2, 'ARC': 2, 'SOLIDREGION': 1, 'RECT': 5, 'CIRCLE': 5}.get(kind)
+        layer_index = {
+            'TRACK': 2,
+            'ARC': 2,
+            'SOLIDREGION': 1,
+            'RECT': 5,
+            'CIRCLE': 5,
+            'TEXT': 7,
+        }.get(kind)
         copper = (
             layer_index is not None
             and len(fields) > layer_index
             and fields[layer_index] in COPPER_LAYERS
         )
         try:
+            if kind == 'TEXT' and copper:
+                # Decoration defaults must not invent the size of copper lettering.
+                if any(fields[i] in ('', 'undefined') for i in (2, 3, 4, 5, 6, 9)):
+                    raise ValueError('missing copper text geometry')
+                if fields[6] not in ('0', '1'):
+                    raise ValueError('unsupported copper text mirror flag')
             if kind == 'PAD':
                 pads.append(parse_pad(raw, fc))
             else:
-                fg.extend(footprint_graphic(raw, fc))
+                graphics = footprint_graphic(raw, fc)
+                if copper and not graphics:
+                    raise ValueError('empty copper geometry')
+                fg.extend(graphics)
         except (ValueError, IndexError, KeyError, TypeError) as e:
             if kind in ('PAD', 'VIA', 'HOLE') or copper:
                 raise ValueError(
                     f'{result["uuid"]}: invalid essential footprint {kind}: {e}; no new libraries published'
                 ) from e
             log.warning('%s: skipping optional footprint element (%s): %s', result['uuid'], e, raw)
+        if len(fg) > MAX_PRIMITIVES:
+            raise ValueError('footprint exceeds supported primitive count')
     for raw in data.get('shape', []):
         kind = raw.split('~', 1)[0]
         try:
@@ -127,6 +147,8 @@ def convert_response(response, package=None, *, library_name=None):
                     f'{result["uuid"]}: invalid essential symbol pin: {e}; no new libraries published'
                 ) from e
             log.warning('%s: skipping optional symbol element (%s): %s', result['uuid'], e, raw)
+        if len(sg) > MAX_PRIMITIVES:
+            raise ValueError('symbol exceeds supported primitive count')
     for number, count in Counter(p.number for p in pins).items():
         if count > 1:
             log.warning('Duplicate symbol pin number %s (%s records retained)', number, count)
@@ -150,6 +172,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
     publication failures use the journal and backups for rollback.
     """
     converted = convert_response(response, package)
+    check_identity(folder, response['result']['uuid'], name=converted.name)
     folder.parent.mkdir(parents=True, exist_ok=True)
     recover(folder)
     with tempfile.TemporaryDirectory(prefix='.ee2kicad-stage-', dir=folder.parent) as temporary:
@@ -164,7 +187,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
         # libraries lose their model references without deleting any user files.
         for old in folder.glob('*.pretty/*.kicad_mod'):
             try:
-                tree = loads(old.read_text(encoding='utf-8'))
+                tree = loads(read_limited(old).decode('utf-8'))
             except ValueError:
                 continue  # A damaged current file can still be replaced safely.
             if (
@@ -175,7 +198,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                 old_symbol = folder / f'{old.stem}.kicad_sym'
                 source_uuids = []
                 if old_symbol.exists():
-                    old_tree = loads(old_symbol.read_text(encoding='utf-8'))
+                    old_tree = loads(read_limited(old_symbol).decode('utf-8'))
                     source_uuids = [
                         p[2]
                         for symbol in children(old_tree, 'symbol')
@@ -201,9 +224,9 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                     old.stem,
                 )
         credits = folder / 'CREDITS.txt'
-        if credits.is_file() and credits.read_bytes() != converted.credits.encode('utf-8'):
+        if credits.is_file() and read_limited(credits) != converted.credits.encode('utf-8'):
             saved = f'CREDITS.previous-{digest(credits)[:12]}.txt'
-            artifacts[saved] = credits.read_bytes()
+            artifacts[saved] = read_limited(credits)
             log.warning('Previous attribution preserved in %s.', saved)
         # Preserve edited generated files too. They may contain deliberate user
         # changes, even though their generator still identifies this converter.
@@ -211,7 +234,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
         previous = {}
         if previous_manifest.exists():
             try:
-                metadata = json.loads(previous_manifest.read_bytes())
+                metadata = json.loads(read_limited(previous_manifest))
                 if metadata['version'] == 1 and metadata['uuid'] == response['result']['uuid']:
                     previous = metadata['files']
                     if not isinstance(previous, dict):
@@ -224,11 +247,11 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
             if (
                 target.suffix in ('.kicad_sym', '.kicad_mod')
                 and target.is_file()
-                and target.read_bytes() != encoded
+                and read_limited(target) != encoded
                 and (relative not in previous or digest(target) != previous[relative])
             ):
                 saved = relative + f'.previous-{digest(target)[:12]}'
-                artifacts[saved] = target.read_bytes()
+                artifacts[saved] = read_limited(target)
                 log.warning('Modified or legacy library preserved in %s before rebuilding.', saved)
         for relative, content in artifacts.items():
             target = local_path(folder, relative)
@@ -238,7 +261,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                 and relative not in previous
             ):
                 try:
-                    text = target.read_text(encoding='utf-8')
+                    text = read_limited(target).decode('utf-8')
                 except UnicodeError as e:
                     raise ValueError(
                         f'Cannot confirm ownership of unreadable library: {target}; move it aside first'
@@ -253,7 +276,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
             path = local_path(stage, relative)
             path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write(path, content)
-        if not libraries_complete(stage):
+        if not libraries_complete(stage, expected_uuid=response['result']['uuid']):
             raise ValueError(
                 'Generated library structure is incomplete; previous libraries were kept'
             )
