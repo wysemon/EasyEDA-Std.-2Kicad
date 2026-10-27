@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 def atomic_write(path: Path, content: str | bytes):
+    """Replace one file via a flushed sibling; multi-file safety is publication's job."""
     data = content.encode('utf-8') if isinstance(content, str) else content
     temporary = None
     try:
@@ -16,6 +17,7 @@ def atomic_write(path: Path, content: str | bytes):
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
+        # A sibling temporary file keeps replacement on the same filesystem.
         os.replace(temporary, path)
     finally:
         if temporary is not None:

@@ -11,6 +11,7 @@ def numbers(text):
 
 
 def point_pairs(text, minimum=2):
+    """Require complete finite XY pairs; do not silently drop bad coordinates."""
     values = numbers(text)
     if (
         re.sub(NUMBER, '', text).strip(' \t\r\n,')
@@ -23,6 +24,11 @@ def point_pairs(text, minimum=2):
 
 
 def arc_points(start, values):
+    """Convert SVG endpoint arc parameters to circular or sampled ellipse points.
+
+    Follow the SVG endpoint-to-center construction, including radius correction:
+    https://www.w3.org/TR/SVG/implnote.html#ArcImplementationNotes
+    """
     rx, ry, rotation, large, sweep, x, y = values
     rx, ry = abs(rx), abs(ry)
     end = (x, y)
@@ -34,10 +40,12 @@ def arc_points(start, values):
     c, s = math.cos(phi), math.sin(phi)
     dx, dy = (start[0] - x) / 2, (start[1] - y) / 2
     xp, yp = c * dx + s * dy, -s * dx + c * dy
+    # SVG enlarges undersized radii so the ellipse can reach both endpoints.
     scale = max(1, math.sqrt((xp / rx) ** 2 + (yp / ry) ** 2))
     rx, ry = rx * scale, ry * scale
     numerator = max(0, rx**2 * ry**2 - rx**2 * yp**2 - ry**2 * xp**2)
     denominator = rx**2 * yp**2 + ry**2 * xp**2
+    # The two centers are disambiguated by the large-arc and sweep flags.
     factor = (-1 if bool(large) == bool(sweep) else 1) * math.sqrt(numerator / denominator)
     cxp, cyp = factor * rx * yp / ry, -factor * ry * xp / rx
     cx = c * cxp - s * cyp + (start[0] + x) / 2

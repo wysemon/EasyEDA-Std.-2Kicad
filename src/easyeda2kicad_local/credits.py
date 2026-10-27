@@ -7,6 +7,7 @@ def owner(component):
 
 
 def render_credits(result, data, fp, package, name):
+    """Retain full descriptions and verbatim licenses outside shortened fields."""
     source = f'https://easyeda.com/component/{result["uuid"]}'
     heads = [data['head'], fp['head']]
     official = any(
@@ -26,6 +27,8 @@ def render_credits(result, data, fp, package, name):
     )
     credits += f'Description (from source):\n{result.get("description") or ""}\n'
     for label, head in zip(('symbol', 'footprint'), heads):
+        # Do not normalize source license whitespace or combine the two authors'
+        # terms; attribution is stored separately from the converter's license.
         if isinstance(head.get('license'), str):
             credits += f'\nLicense (from source) [{label}]:\n{head["license"]}\n'
     return credits

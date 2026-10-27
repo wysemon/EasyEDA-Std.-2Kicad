@@ -115,7 +115,7 @@ Use `convert` after updating the app to rebuild existing output offline. For old
 
 ### Safe updates and older output
 
-New libraries are built privately and validated before they replace anything. A hidden completion record tracks the generated files. If writing or validation fails, the previous libraries stay available. After an interrupted publish, the next normal run restores the previous files. Use `convert` to rebuild again if those previous files are already complete. Dry runs leave your output untouched. Run only one converter process per output folder.
+New libraries are built in a temporary folder and checked before they replace anything. With `--validate`, KiCad must accept them too. A hidden completion record tracks the generated files. If writing or validation fails, the previous libraries stay available. After an interrupted publish, the next normal run restores the previous files. Use `convert` to rebuild again if those previous files are already complete. Dry runs leave your output untouched. Run only one converter process per output folder.
 
 Old converter-generated footprints with model references are rebuilt from their cache automatically, including older library names. Unassociated libraries are left alone with a manual-cleanup warning. No model files are deleted. You can remove unused STEP/WRL files yourself after checking that other projects do not use them. Raw JSON containing `SVGNODE` metadata is harmless and stays unchanged.
 
@@ -174,6 +174,7 @@ On Linux/macOS, after setup:
 .venv/bin/python -m pip install -e '.[test]'
 .venv/bin/python -m pytest
 .venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check .
 ```
 
 On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use double quotes around `".[test]"`.
@@ -195,6 +196,13 @@ Strict `--validate` checks file import, not ERC, DRC or fabrication suitability.
 `pytest -m live` opts into fetching exactly one public component through the normal paced client, including its retry/stop rules. It makes no search or footprint fallback requests and writes no output files.
 
 The normal suite deselects it. CI never runs it; `CI` or `EE2KICAD_DISABLE_LIVE` also forces a skip even with `-m live`. Other tests continue to block HTTP requests.
+
+## Project documentation
+
+- [Contributing](CONTRIBUTING.md): setup, code map, formatting and test commands.
+- [API and format notes](docs/API_NOTES.md): verified conventions and remaining limits.
+- [Audit](docs/FINAL_AUDIT.md) and [follow-up](docs/PR_FOLLOWUP.md): recorded findings and validation evidence.
+- [Report a problem](https://github.com/wysemon/EasyEDA-Std.-2Kicad/issues): include the component link, command and relevant warning.
 
 ## Credits and license
 

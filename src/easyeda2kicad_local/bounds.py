@@ -32,6 +32,7 @@ def rotated_box(x, y, width, height, angle):
 
 
 def pad_points(node):
+    """Collect conservative pad, primitive and drill extents in footprint mm."""
     at = values(node, 'at')
     x, y = at[:2]
     angle = at[2] if len(at) > 2 else 0
@@ -58,6 +59,7 @@ def pad_points(node):
 
 
 def arc_extrema(start, mid, end):
+    """Include quadrant extrema only when the start/mid/end arc crosses them."""
     ax, ay = start
     bx, by = mid
     cx, cy = end
@@ -108,6 +110,7 @@ def graphic_points(node):
 
 
 def courtyard(pads, graphics):
+    """Enclose physical geometry without distant text or documentation layers."""
     points = [point for pad in pads for point in pad_points(loads(pad.render()))]
     points.extend(point for graphic in graphics for point in graphic_points(loads(graphic)))
     # 0.25 mm clearance, rounded outwards to KiCad's usual 0.05 mm grid.

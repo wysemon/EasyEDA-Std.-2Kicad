@@ -58,6 +58,7 @@ def fail(message, *, verbose=False):
 
 
 def caller_path(path):
+    """Resolve user paths relative to the invoking directory, not the checkout."""
     if path.is_absolute():
         return path
     return (Path(os.environ.get('EE2KICAD_CWD') or Path.cwd()) / path).resolve()

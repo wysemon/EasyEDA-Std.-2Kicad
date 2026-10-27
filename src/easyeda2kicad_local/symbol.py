@@ -28,6 +28,12 @@ SYMBOL_TEXT_SIZE_CAP = 75 * 0.0254
 
 @dataclass
 class Pin:
+    """A connected pin in local mm, with a Y-up direction in degrees.
+
+    Keep the original name even when rendering it hidden, for stored metadata.
+    Pin numbers always remain visible, independently of unreliable source flags.
+    """
+
     number: str
     name: str
     x: float
@@ -49,6 +55,7 @@ class Pin:
 
 
 def parse_pin(raw, coords):
+    """Read a P record's subsections and derive direction from its straight path."""
     sections = [s.split('~') for s in raw.split('^^')]
     main = sections[0]
     segments = list(path_segments(sections[2][0]))
@@ -92,6 +99,7 @@ def parse_pin(raw, coords):
 
 
 def symbol_text_angle(value):
+    """Reflect source degrees into KiCad graphic-text tenths of a degree."""
     # Stock SSM2018 graphic text: 900 = 90 degrees; property angles use 90.
     # Reflect the EasyEDA Y-down orientation into symbol Y-up before scaling.
     return f'{(-num(value) % 360) * 10:g}'
@@ -122,6 +130,8 @@ def symbol_graphic(raw, coords):
             f'(circle (center {coords.xy(x, y)}) (radius {f(rx * UNIT)}) {stroke(num(t[wi], 1) * UNIT)} {fill(t[fi])})'
         ]
     if kind == 'T':
+        # Symbol fonts use points. This cap intentionally excludes footprint
+        # text, pin labels and properties, which have different size policies.
         size = min(num(t[7], 9) * 25.4 / 72, SYMBOL_TEXT_SIZE_CAP)
         return [
             f'(text {q(t[12])} (at {coords.xy(t[2], t[3])} {symbol_text_angle(t[4])}) '
@@ -207,6 +217,7 @@ def symbol_label_position(data, coords, graphics, pins, below=False):
 
 
 def unit_one(data):
+    """Require a single unit; retain this historical helper name for callers."""
     if not data.get('subparts'):
         return data
     raise ValueError(
@@ -215,6 +226,7 @@ def unit_one(data):
 
 
 def render_symbol(result, data, name, sc, sg, pins):
+    """Render body, pins and source metadata with a matching footprint reference."""
     para = data['head'].get('c_para') or {}
     source = f'https://easyeda.com/component/{result["uuid"]}'
     properties = {

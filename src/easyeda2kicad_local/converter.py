@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .client import UUID
+
+# Explicit aliases retain the original converter module's importable helpers.
+# Implementations live in focused modules; callers need not change imports.
 from .credits import owner as owner
 from .credits import render_credits
 from .files import atomic_write
@@ -52,20 +55,30 @@ from .symbol import unit_one as unit_one
 from .validation import validate_libraries
 
 log = logging.getLogger(__name__)
+# Inner copper is recognized as electrical even where its export is unsupported:
+# an unmapped copper record must fail instead of disappearing as decoration.
 COPPER_LAYERS = {'1', '2', '11', *(str(i) for i in range(21, 53))}
 
 
 @dataclass
 class Conversion:
+    """A complete in-memory conversion, with KiCad geometry expressed in mm."""
+
     name: str
-    pins: list
-    pads: list
+    pins: list[Pin]
+    pads: list[Pad]
     symbol: str
     footprint: str
     credits: str
 
 
 def convert_response(response, package=None, *, library_name=None):
+    """Render validated source data without network or filesystem operations.
+
+    ``library_name`` is used to regenerate verified legacy library aliases;
+    normal exports use the sanitized title and UUID suffix. Essential record
+    errors abort the component; optional drawing errors remain visible warnings.
+    """
     if response.get('success') is not True:
         raise ValueError('API response did not succeed')
     result = response['result']
@@ -129,7 +142,13 @@ def convert_response(response, package=None, *, library_name=None):
 
 
 def write_conversion(response, folder: Path, package=None, *, validate=False, sources=None):
-    """Build and validate privately; publish only a complete set, with rollback."""
+    """Stage a complete set, optionally validate with KiCad, then publish it.
+
+    ``sources`` carries untouched response bytes into the same publication.
+    Structural checks always run; ``validate`` additionally requires native
+    KiCad acceptance. Pre-publication failures leave old output untouched;
+    publication failures use the journal and backups for rollback.
+    """
     converted = convert_response(response, package)
     folder.parent.mkdir(parents=True, exist_ok=True)
     recover(folder)

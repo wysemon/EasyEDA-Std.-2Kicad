@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 
 def read_response(raw, expected=None):
+    """Validate the API envelope and requested identity without altering bytes."""
     data = json.loads(raw)
     if not isinstance(data, dict) or data.get('success') is not True:
         raise FetchError('Component is unavailable/private or API returned success:false')
@@ -29,6 +30,7 @@ def read_response(raw, expected=None):
 
 
 def find_cache(root, uuid):
+    """Find a component by stored UUID, independent of its title or folder name."""
     matches = []
     if root.exists():
         for raw in root.glob('*/raw.json'):
@@ -50,6 +52,11 @@ def append_log(root, uuid, status):
 
 
 def resolve_package(data, folder, client=None, *, force=False):
+    """Prefer embedded footprint data; allow HTTP only with an explicit client.
+
+    Passing ``None`` is the offline boundary used by cached conversion. Missing
+    fallback data must fail there rather than silently reaching the network.
+    """
     result = data['result']
     if result.get('packageDetail'):
         return result['packageDetail']
@@ -79,6 +86,11 @@ def run_items(
     validate=False,
     verbose=False,
 ):
+    """Process a batch and return 0 on success, 1 if any component failed.
+
+    Keep one client for cross-item pacing and denial detection. Dry runs may
+    read existing output, but all their writes belong to disposable directories.
+    """
     failures = succeeded = skipped = 0
     libraries = set()
 
@@ -114,6 +126,8 @@ def run_items(
                 if cached_only and not cached:
                     raise ValueError('No raw.json cache found; fetch this component first')
                 if cached and not dry_run:
+                    # Restore a previous complete snapshot before deciding
+                    # whether an interrupted replacement can be skipped.
                     recover(cached)
                 if (
                     cached

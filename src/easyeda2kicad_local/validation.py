@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 
 def validate_libraries(folder: Path, name: str):
+    """Require real KiCad upgrades on disposable copies and return whether both pass."""
     executable = shutil.which('kicad-cli')
     if executable is None:
         print(

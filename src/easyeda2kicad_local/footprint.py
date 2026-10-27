@@ -7,6 +7,8 @@ from .bounds import courtyard
 from .geometry import point_pairs
 from .shared import UNIT, effects, f, num, q, stroke, svg_graphics
 
+# Layer 11 is handled by pad parsing as all copper/mask layers. Unsupported
+# drawing IDs deliberately have no fallback; see the verified table in API_NOTES.
 LAYERS = {
     '1': 'F.Cu',
     '2': 'B.Cu',
@@ -34,6 +36,12 @@ def layer(value):
 
 @dataclass
 class Pad:
+    """A physical pad in local mm with a KiCad degree rotation and local polygon.
+
+    Positions keep the footprint's Y-down axis. Hole length is the full oblong
+    drill length, not the distance between its circular end centers.
+    """
+
     number: str
     x: float
     y: float
@@ -45,7 +53,7 @@ class Pad:
     shape: str
     kind: str
     layers: str
-    polygon: list
+    polygon: list[tuple[float, float]]
 
     def render(self):
         drill = ''
@@ -61,6 +69,7 @@ class Pad:
             else:
                 drill = f'(drill {f(self.drill)})'
         shape = 'custom' if self.polygon else self.shape
+        # KiCad custom pads need an anchor as well as polygon primitives.
         size = (
             (min(self.width, self.height) / 4,) * 2 if self.polygon else (self.width, self.height)
         )
@@ -75,6 +84,7 @@ class Pad:
 
 
 def parse_pad(raw, coords):
+    """Read the verified PAD field layout and keep all physical units in mm."""
     t = raw.split('~')
     x, y = coords.point(t[2], t[3])
     w, h, radius = num(t[4]) * UNIT, num(t[5]) * UNIT, num(t[9]) * UNIT
@@ -130,6 +140,7 @@ def parse_pad(raw, coords):
 
 
 def footprint_graphic(raw, coords):
+    """Render supported 2D records; model metadata emits no geometry."""
     t = raw.split('~')
     kind = t[0]
     if kind in ('TRACK', 'ARC'):
@@ -187,6 +198,11 @@ def footprint_graphic(raw, coords):
 
 
 def render_footprint(name, fp, fc, pads, fg):
+    """Render a library entry with physical bounds and a generated courtyard.
+
+    ``fp`` and ``fc`` remain for compatibility with the original call signature.
+    Bounds come from exported geometry rather than the source's stale BBox.
+    """
     minx, miny, maxx, maxy = courtyard(pads, fg)
     courtyard_graphic = f'(fp_rect (start {f(minx)} {f(miny)}) (end {f(maxx)} {f(maxy)}) {stroke(0.05)} (fill none) (layer "F.CrtYd"))'
     attrs = 'through_hole' if any(p.kind != 'smd' for p in pads) else 'smd'

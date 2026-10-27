@@ -7,6 +7,7 @@ TOKEN = re.compile(r'\s*(\(|\)|"(?:\\.|[^"\\])*"|[^\s()"]+)')
 
 
 def loads(text):
+    """Read exactly one complete expression, respecting quoted and escaped text."""
     stack, root, offset = [], None, 0
     while offset < len(text):
         if not text[offset:].strip():
@@ -48,6 +49,7 @@ def contains(node, kind):
 
 
 def descendants(node, kind):
+    """Walk nested units/primitives without treating quoted strings as records."""
     if node and node[0] == kind:
         yield node
     for part in node:

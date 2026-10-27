@@ -9,10 +9,12 @@ import unicodedata
 from .geometry import path_segments
 
 log = logging.getLogger(__name__)
+# EasyEDA's drawing unit is 10 mil, irrespective of the editor's displayed grid.
 UNIT = 0.254
 
 
 def num(value, default=0.0):
+    """Apply source sentinels as defaults, but reject malformed/nonfinite values."""
     if value in (None, '', 'undefined'):
         return default
     value = float(str(value).removesuffix('pt'))
@@ -22,6 +24,7 @@ def num(value, default=0.0):
 
 
 def f(value):
+    """Keep serialization stable to six decimals, including a canonical zero."""
     value = round(value, 6)
     return str(value if value else 0)
 
@@ -40,6 +43,7 @@ def q(text):
 
 
 def safe_name(title):
+    """Build a portable ASCII title; the caller appends the component identity."""
     ascii_title = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode()
     name = (
         re.sub(r'[^A-Za-z0-9_.-]+', '_', ascii_title).strip('._-')[:60].rstrip('._-') or 'component'
@@ -60,6 +64,7 @@ def safe_name(title):
 
 
 def document(value):
+    """Accept dataStr as either an API object or its JSON-encoded string form."""
     return json.loads(value) if isinstance(value, str) else value
 
 
@@ -73,10 +78,19 @@ def effects(size=1.27, hidden=False, justify=None):
 
 
 class Coordinates:
+    """Translate source points to local KiCad mm using a verified document origin.
+
+    Symbol coordinates reflect Y into KiCad's upward axis. Footprints keep the
+    source Y-down axis. Resolve each missing head coordinate independently from
+    the canvas; a valid explicit zero is never treated as a missing origin.
+    """
+
     def __init__(self, data, symbol=False):
         head = data['head']
         canvas = data.get('canvas')
         fields = canvas.split('~') if isinstance(canvas, str) else []
+        # CA layouts differ between symbol and footprint documents. These
+        # zero-based origin fields are verified against all six real fixtures.
         indices = (13, 14) if symbol else (16, 17)
         resolved = []
         fallbacks = []

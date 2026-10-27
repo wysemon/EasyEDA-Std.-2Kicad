@@ -23,14 +23,15 @@ HEADERS = {
 
 
 class FetchError(Exception):
-    pass
+    """One component could not be fetched; independent items may continue."""
 
 
 class StopRun(FetchError):
-    pass
+    """Access restrictions require stopping the whole batch, including retries."""
 
 
 def parse_uuid(value):
+    """Normalize a UUID or approved component URL without fetching anything."""
     value = value.strip()
     if UUID.fullmatch(value):
         return value.lower()
@@ -48,6 +49,12 @@ def parse_uuid(value):
 
 
 class EasyEDAClient:
+    """Own one sequential connection pool and pacing state for an entire batch.
+
+    Injectable timing and transport keep retry tests offline and instantaneous.
+    The denial counter intentionally survives calls to ``component()``.
+    """
+
     def __init__(
         self,
         delay=4.0,
@@ -71,6 +78,7 @@ class EasyEDAClient:
         self.http.close()
 
     def request(self, url, *, params=None):
+        """Fetch approved HTTPS bytes with bounded retries and a shared cooldown."""
         target = urlsplit(url)
         if target.scheme != 'https' or target.netloc != 'easyeda.com':
             raise FetchError('Refusing destination outside EasyEDA')
@@ -86,6 +94,8 @@ class EasyEDAClient:
                     f'Network request failed ({type(e).__name__}); check your internet connection/proxy and retry.'
                 ) from e
             self.next_request = self.clock() + self.delay + self.jitter()
+            # Count denials across attempts and items; retrying must not reset
+            # the signal that EasyEDA is asking this client to stop.
             if response.status_code in (403, 429):
                 self.denied += 1
                 if self.denied >= 2:
@@ -129,6 +139,7 @@ class EasyEDAClient:
         raise AssertionError('unreachable')
 
     def component(self, uuid):
+        """Use the same public endpoint for symbols and footprint fallbacks."""
         if not UUID.fullmatch(uuid):
             raise FetchError('invalid component UUID')
         return self.request(
