@@ -210,3 +210,8 @@ No relative model attachment or transform is guessed. No KiCad 3D viewer
 comparison has been performed. Pad/text rotation sign and oval drill orientation
 also still need a real source-to-KiCad comparison; parsing model attrs does not
 establish those conventions.
+
+All generated libraries, CREDITS and raw/fallback cache files use same-directory
+temporary files followed by `os.replace()`. Interrupted writes leave the old
+complete file (or no file), and normal failures remove temporary files. This is
+per-file atomic replacement, not a transaction across all output files.

@@ -9,6 +9,7 @@ from .client import EasyEDAClient, FetchError, StopRun, UUID
 from .converter import document, safe_name, write_conversion
 from .validation import validate_libraries
 from .models import parse_svgnode
+from .files import atomic_write
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def resolve_package(data, folder, client=None, *, force=False):
     log.warning('Missing packageDetail; fetching footprint fallback %s', puuid)
     raw = client.component(puuid)
     response = read_response(raw, puuid)
-    cached.write_bytes(raw)
+    atomic_write(cached, raw)
     return response['result']
 
 
@@ -86,7 +87,7 @@ def experimental_model(package, folder, name, client):
         raw = client.request(f'https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{uuid}')
         if not raw.lstrip().startswith(b'ISO-10303-21;'):
             raise FetchError('Model endpoint did not return a STEP file')
-        (folder / f'{name}.step').write_bytes(raw)
+        atomic_write(folder / f'{name}.step', raw)
         log.warning('Experimental STEP downloaded, but not attached: placement/rotation requires a model-bearing sample. '
                     'Add it manually in KiCad until transforms are verified.')
     except StopRun:
@@ -157,9 +158,9 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                 if dry_run:
                     with tempfile.TemporaryDirectory(prefix='easyeda2kicad-') as tmp:
                         target = Path(tmp)
-                        (target / 'raw.json').write_bytes(raw)
+                        atomic_write(target / 'raw.json', raw)
                         if cached and (cached / 'package_raw.json').exists():
-                            (target / 'package_raw.json').write_bytes((cached / 'package_raw.json').read_bytes())
+                            atomic_write(target / 'package_raw.json', (cached / 'package_raw.json').read_bytes())
                         package = resolve_package(data, target, None if cached or cached_only else client)
                         converted = write_conversion(data, target, package)
                         log.info('Dry run %s: %d pins, %d pads', uuid, len(converted.pins), len(converted.pads))
@@ -171,7 +172,7 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                     continue
                 folder.mkdir(parents=True, exist_ok=True)
                 if not using_cache:
-                    (folder / 'raw.json').write_bytes(raw)
+                    atomic_write(folder / 'raw.json', raw)
                 package = resolve_package(data, folder, None if using_cache else client, force=force and not using_cache)
                 converted = write_conversion(data, folder, package)
                 remember(folder)

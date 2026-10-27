@@ -9,6 +9,7 @@ import re
 import unicodedata
 
 from .geometry import numbers, path_segments
+from .files import atomic_write
 
 log = logging.getLogger(__name__)
 UNIT = .254
@@ -498,7 +499,7 @@ def write_conversion(response, folder: Path, package=None):
     folder.mkdir(parents=True, exist_ok=True)
     pretty = folder / f'{converted.name}.pretty'
     pretty.mkdir(exist_ok=True)
-    (pretty / f'{converted.name}.kicad_mod').write_text(converted.footprint, encoding='utf-8')
-    (folder / f'{converted.name}.kicad_sym').write_text(converted.symbol, encoding='utf-8')
-    (folder / 'CREDITS.txt').write_text(converted.credits, encoding='utf-8')
+    atomic_write(pretty / f'{converted.name}.kicad_mod', converted.footprint)
+    atomic_write(folder / f'{converted.name}.kicad_sym', converted.symbol)
+    atomic_write(folder / 'CREDITS.txt', converted.credits)
     return converted
