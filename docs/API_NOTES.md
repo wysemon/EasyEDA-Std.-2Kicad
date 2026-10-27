@@ -26,6 +26,7 @@ Subtract each document's head.x/y; negate Y only for symbols.
 | Symbol T | x/y=2/3, rotation=4, font size=7 (pt), text=12 |
 | Symbol P | main section: electrical type=2, fallback number=3, x/y=4/5, rotation=6; split `^^`: path=2, name=3, number=4, inversion=5, clock=6 |
 | Pin labels | text=4 inside name/number subsections; empty electrical type defaults to unspecified |
+| Footprint RECT | x/y=1/2, width/height=3/4, layer=5, id=6 (verified by OLED) |
 | TRACK | width=1, layer=2, net=3, point pairs=4 |
 | ARC | width=1, layer=2, net=3, SVG path=4 |
 | SOLIDREGION | layer=1, net=2, SVG path=3, fill type=4 |
@@ -58,15 +59,16 @@ sampled as polylines and reported. No third-party conversion source is copied.
 
 In the original MAX98357A/TP4056 fixtures, only R/P/E/T and TRACK/ARC/SOLIDREGION/TEXT/PAD occur.
 Other documented records are implemented conservatively and must be checked
-against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE/RECT, custom polygon pads,
+against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE, custom polygon pads,
 slots, multilayer SMD, electrical-type mappings, pin clock/inversion, subparts.
 Unsupported paths or records warn with their raw line and are skipped.
 Subparts are unverified: warn and use unit 1 only when a recognizable shape
 container is supplied; do not guess unrecognized layouts.
 
-Neither original MAX98357A/TP4056 fixture has SVGNODE or uuid_3d; the SX1308 sample below now verifies SVGNODE attribute parsing. The proposed modules.easyeda.com OBJ
-and STEP endpoints and transforms remain unverified. Request a model-bearing
-sample before finalizing 3D. Do not invent model placement from head origins.
+Neither original MAX98357A/TP4056 fixture has SVGNODE or uuid_3d. The SX1308
+sample below now verifies SVGNODE attribute parsing. Model-download routes
+remain experimental; model placement and rotation still require comparison
+in KiCad's 3D viewer. Do not invent placement from head origins.
 
 ## Implementation and validation plan
 

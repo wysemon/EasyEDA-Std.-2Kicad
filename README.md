@@ -138,7 +138,7 @@ The app contacts only easyeda.com, plus modules.easyeda.com when `--3d` is selec
 - `--3d` is experimental. The SX1308 fixture contains a real SVGNODE and its attributes are tested. STEP downloads are optional; automatic placement and relative-path attachment remain disabled pending a KiCad 3D viewer comparison. Place downloaded models manually. OBJ/WRL conversion is not implemented.
 - Unverified record types are listed in [API notes](docs/API_NOTES.md). Unsupported records warn and are skipped. Unknown electrical types become unspecified. Multi-unit symbols warn and use unit 1 only when recognized.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
-- Pad/text rotation signs and true oval-slot orientation need a real sample to verify. Neither fixture has an asymmetric rotated pad or a true oval slot. See [API notes](docs/API_NOTES.md).
+- Pad/text rotation signs and true oval-slot orientation need a real sample to verify. The fixtures do not establish these conventions; a source-to-KiCad comparison is still needed. See [API notes](docs/API_NOTES.md).
 - There is no manufacturability guarantee. Review geometry, drills, pin mapping and clearances before fabrication.
 - Public component data may have third-party restrictions. Attribution does not grant redistribution rights. Review the source and each generated CREDITS.txt.
 
