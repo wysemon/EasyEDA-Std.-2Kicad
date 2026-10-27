@@ -180,7 +180,7 @@ On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use do
 
 The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `ee2kicad --version` prints the installed version.
 
-Files target the KiCad 8/9 formats. The local audit used **KiCad 9.0.2**. CI keeps the Python 3.11/3.12 Windows/Linux matrix and adds a separate Ubuntu 24.04 job using its native KiCad package. That job requires the CLI and Python geometry bindings and prints their versions. KiCad 8 has not been executed locally; see [the audit report](docs/FINAL_AUDIT.md) for verification limits.
+Files target the KiCad 8/9 formats. Native checks pass with **KiCad 8.0.9** in an isolated Ubuntu 24.04 environment and **KiCad 9.0.2** on the development host. CI keeps the Python 3.11/3.12 Windows/Linux matrix and has a separate KiCad 8 job using the KiCad team’s maintained 8.0 PPA. That job verifies both CLI and Python binding versions before testing. See [the follow-up report](docs/PR_FOLLOWUP.md) for evidence and remaining limits.
 
 To run just the native checks after installing KiCad:
 

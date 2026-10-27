@@ -353,13 +353,17 @@ F.CrtYd; rear-side courtyard policy needs a genuine source comparison.
 ## Native integration and validation status
 
 The fast Python 3.11/3.12 Ubuntu/Windows matrix is unchanged. A separate native
-job installs Ubuntu 24.04's distribution KiCad package (8-series), prints the
-actual CLI/build versions and requires both kicad-cli and Python pcbnew. It runs
-only offline `kicad`-marked tests. `EE2KICAD_REQUIRE_KICAD=1` prevents a silently
-skipped native job; `EE2KICAD_REQUIRE_PCBNEW=1` requires geometry bindings too.
-The geometry helper accounts for KiCad 8/9's different GetEffectivePolygon APIs,
-checked against their headers. Only KiCad **9.0.2** was executed locally in this
-audit. The new remote CI results and native KiCad 8 remain pending verification.
+job installs KiCad from the team's `ppa:kicad/kicad-8.0-releases` repository on
+Ubuntu 24.04. The default Ubuntu repository supplies **7.0.11**, not KiCad 8;
+using it caused all 18 native tests to fail. The corrected job checks that both
+kicad-cli and pcbnew report major version 8 before running the tests.
+`EE2KICAD_REQUIRE_KICAD=1` and `EE2KICAD_REQUIRE_PCBNEW=1` prevent silently
+skipping the required tools. No EasyEDA network requests run in CI.
+
+All 18 native cases pass on **8.0.9** in an isolated Ubuntu 24.04 environment,
+and on **9.0.2** on the development host. The geometry helper handles the
+versions' different GetEffectivePolygon APIs; no geometry assertions were
+relaxed to support 8. See `PR_FOLLOWUP.md` for reproduction and test results.
 
 Explicit --validate now returns failure when KiCad is absent, fails or times
 out. Symbol and footprint results are separate, and both are attempted on

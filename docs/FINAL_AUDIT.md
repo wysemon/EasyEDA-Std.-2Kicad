@@ -1,5 +1,9 @@
 # Final 2D release audit — 2026-10-27
 
+This is the original audit snapshot at `6855f51`. The [PR follow-up](PR_FOLLOWUP.md)
+corrects the Ubuntu package assumption, records actual KiCad 8 verification and
+adds unreadable-library recovery coverage. Use that follow-up for current results.
+
 ## A. Summary
 
 The existing converter was audited and extended with recoverable publication,
