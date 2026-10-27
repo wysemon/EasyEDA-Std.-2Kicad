@@ -103,3 +103,12 @@ def test_url_variants(host, suffix):
 def test_reject_host_variants(host):
     with pytest.raises(ValueError):
         parse_uuid(f'https://{host}/component/{NEW}')
+
+
+def test_editor_version_constant_is_sent():
+    from easyeda2kicad_local.client import EDITOR_VERSION
+    client, clock, calls = make_client([200])
+    with client:
+        client.component(NEW)
+    assert EDITOR_VERSION == '6.5.60'
+    assert calls[0].url.params['version'] == EDITOR_VERSION

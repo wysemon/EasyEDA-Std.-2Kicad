@@ -220,3 +220,6 @@ CI runs the offline suite on Ubuntu and Windows, on Python 3.11 and 3.12.
 Only dependency installation uses the network; component/model HTTP requests
 are blocked by test fixtures. Native launcher tests run on their own platform.
 Live smoke tests are explicitly excluded and disabled in CI.
+
+`client.EDITOR_VERSION` is the single API editor-version setting (currently
+`6.5.60`). The component request uses this constant for its version parameter.

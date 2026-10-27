@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 import httpx
 
 log = logging.getLogger(__name__)
+EDITOR_VERSION = '6.5.60'
 UUID = re.compile(r'^[a-fA-F0-9]{32}$')
 HEADERS = {
     'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -103,4 +104,4 @@ class EasyEDAClient:
         if not UUID.fullmatch(uuid):
             raise FetchError('invalid component UUID')
         return self.request(f'https://easyeda.com/api/components/{uuid}',
-                            params={'version': '6.5.60', 'uuid': uuid})
+                            params={'version': EDITOR_VERSION, 'uuid': uuid})
