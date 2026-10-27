@@ -91,3 +91,38 @@ exercise pin paths from both original fixtures and compact/spaced equivalents.
 `--validate` upgrades temporary copies with KiCad CLI; generated originals are
 never upgraded in place. A successful upgrade checks parsing, not geometry or
 connectivity. The launchers bootstrap once, use UTF-8 and retain request pacing.
+
+## Text angles and symbol property placement
+
+Verified using the installed KiCad **9.0.2** stock libraries, not inferred from
+EasyEDA field names:
+
+| Kind | Stock example | Stored angle for vertical text |
+| --- | --- | --- |
+| Symbol graphic `(text ...)` | `Amplifier_Audio.kicad_sym`, SSM2018, `GAIN CORE`, `(at -1.27 0 900)` | **900**, tenths of a degree |
+| Symbol `(property ...)` | `Device.kicad_sym`, FerriteBead, Reference `(at -3.81 0.635 90)` and Value `(at 3.81 0 90)` | **90**, degrees |
+| Footprint `(fp_text ...)` | `Button_Switch_SMD.pretty/SW_DIP_SPSTx01_Slide_6.7x4.1mm_W6.73mm_P2.54mm_LowProfile_JPin.kicad_mod`, `${REFERENCE}`, `(at 2.58 0 90)` | **90**, degrees |
+
+Exporting these stock libraries with KiCad CLI gives SVG `rotate(-90 ...)`:
+bottom-to-top reading direction. Reflect the symbol orientation when converting
+Y-down to Y-up, then scale **only graphic-text angles** by ten:
+
+| EasyEDA T rotation (degrees) | KiCad symbol graphic angle |
+| --- | --- |
+| 0 | 0 |
+| 90 | 2700 |
+| 180 | 1800 |
+| 270 | 900 |
+
+Properties remain horizontal at 0 degrees. Footprint text retains its existing
+degree angles and Y-down coordinates; do not apply the symbol multiplier.
+Fixture-based tests cover every cardinal angle on both documents, and all four
+symbol graphic angle values survive a KiCad CLI upgrade/save round trip.
+
+Reference and Value use the default centered 1.27 mm font. Their X position is
+the center of converted non-text body geometry (fallback: the full drawing).
+Value sits 2.54 mm above the full converted envelope, with Reference 2.54 mm
+higher. The envelope includes pin paths, conservative rotated text extents and
+the source BBox. Circle/arc envelopes are conservative. This also works without
+a BBox. Every other property has `hide` inside `effects`, including EasyEDA UUID;
+source, author and other metadata remain stored.

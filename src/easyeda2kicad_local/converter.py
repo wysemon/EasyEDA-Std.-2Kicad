@@ -164,6 +164,12 @@ def svg_graphics(path, coords, width, symbol, layer_name='F.Fab', solid=False):
     return result
 
 
+def symbol_text_angle(value):
+    # Stock SSM2018 graphic text: 900 = 90 degrees; property angles use 90.
+    # Reflect the EasyEDA Y-down orientation into symbol Y-up before scaling.
+    return f'{(-num(value) % 360) * 10:g}'
+
+
 def symbol_graphic(raw, coords):
     t = raw.split('~')
     kind = t[0]
@@ -180,7 +186,7 @@ def symbol_graphic(raw, coords):
         wi, fi = (6, 8) if kind == 'E' else (5, 7)
         return [f'(circle (center {coords.xy(x, y)}) (radius {f(rx * UNIT)}) {stroke(num(t[wi], 1) * UNIT)} {fill(t[fi])})']
     if kind == 'T':
-        return [f'(text {q(t[12])} (at {coords.xy(t[2], t[3])} {f(-num(t[4]))}) '
+        return [f'(text {q(t[12])} (at {coords.xy(t[2], t[3])} {symbol_text_angle(t[4])}) '
                 f'{effects(num(t[7], 9) * 25.4 / 72)})']
     if kind in ('PL', 'PG'):
         ns = numbers(t[1])
@@ -191,6 +197,60 @@ def symbol_graphic(raw, coords):
     if kind in ('PT', 'A'):
         return svg_graphics(t[1], coords, num(t[3], 1) * UNIT, True)
     raise ValueError(f'unsupported symbol element {kind}')
+
+
+def symbol_label_position(data, coords, graphics, pins):
+    """Center over body geometry; clear the entire converted drawing and pins.
+
+    Generated primitives are already in KiCad mm. The source BBox is included
+    as an extra guard, but geometry still works when BBox is missing or stale.
+    Text uses a conservative one-em-per-character envelope, not just its anchor.
+    """
+    body, outer = [], []
+    for graphic in graphics:
+        points = [] if graphic.startswith('(text ') else [
+            tuple(numbers(point)) for point in
+            re.findall(r'\((?:start|end|mid|xy|center) ([^)]*)\)', graphic)]
+        if graphic.startswith('(circle '):
+            x, y = points[0]
+            radius = num(re.search(r'\(radius ([^)]*)\)', graphic)[1])
+            points = [(x - radius, y - radius), (x + radius, y + radius)]
+        elif graphic.startswith('(arc '):
+            # Use its full circumcircle as a conservative envelope.
+            (ax, ay), (bx, by), (cx, cy) = points
+            d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+            if abs(d) > 1e-12:
+                aa, bb, cc = ax * ax + ay * ay, bx * bx + by * by, cx * cx + cy * cy
+                x = (aa * (by - cy) + bb * (cy - ay) + cc * (ay - by)) / d
+                y = (aa * (cx - bx) + bb * (ax - cx) + cc * (bx - ax)) / d
+                radius = math.hypot(ax - x, ay - y)
+                points = [(x - radius, y - radius), (x + radius, y + radius)]
+        body.extend(points)
+        outer.extend(points)
+        if graphic.startswith('(text '):
+            match = re.search(r'^\(text ("(?:\\.|[^"\\])*") \(at ([^)]*)\).*?\(size ([^)]*)\)', graphic)
+            text = json.loads(match[1], strict=False)
+            x, y, angle = numbers(match[2])
+            width, height = numbers(match[3])
+            lines = text.splitlines() or ['']
+            half_width = max(map(len, lines)) * width / 2
+            half_height = len(lines) * height * .75
+            a = math.radians(angle / 10)
+            dx = abs(half_width * math.cos(a)) + abs(half_height * math.sin(a))
+            dy = abs(half_width * math.sin(a)) + abs(half_height * math.cos(a))
+            outer.extend([(x - dx, y - dy), (x + dx, y + dy)])
+    for pin in pins:
+        a = math.radians(pin.angle)
+        outer.extend([(pin.x, pin.y),
+                      (pin.x + pin.length * math.cos(a), pin.y + pin.length * math.sin(a))])
+    box = data.get('BBox') or {}
+    if box:
+        outer.extend([coords.point(box['x'], box['y']),
+                      coords.point(num(box['x']) + num(box['width']), num(box['y']) + num(box['height']))])
+    centered = body or outer
+    center = (min(x for x, _ in centered) + max(x for x, _ in centered)) / 2
+    top = max(y for _, y in outer)
+    return center, top + 2.54
 
 
 @dataclass
@@ -389,9 +449,14 @@ def convert_response(response, package=None):
     properties = {'Reference': prefix(para.get('pre')), 'Value': result.get('title', name),
                   'Footprint': f'{name}:{name}', 'Datasheet': para.get('link') or '',
                   'Description': result.get('description') or '', 'Author': owner(result),
-                  'Source': source}
-    props = '\n'.join(f'(property {q(k)} {q(v)} (at 0 {f(3 - i * 2)} 0) {effects(hidden=i > 1)})'
-                      for i, (k, v) in enumerate(properties.items()))
+                  'Source': source, 'EasyEDA UUID': result['uuid']}
+    center, value_y = symbol_label_position(data, sc, sg, pins)
+    # Property angles are degrees; graphic text above uses deci-degrees.
+    positions = {'Reference': (center, value_y + 2.54), 'Value': (center, value_y)}
+    props = '\n'.join(
+        f'(property {q(k)} {q(v)} (at {f(positions.get(k, (center, 0))[0])} '
+        f'{f(positions.get(k, (center, 0))[1])} 0) {effects(hidden=k not in positions)})'
+        for k, v in properties.items())
     symbol = (f'(kicad_symbol_lib (version 20231120) (generator "easyeda2kicad-local")\n'
               f'(symbol {q(name)} (pin_names (offset 0.508)) (in_bom yes) (on_board yes)\n{props}\n'
               f'(symbol {q(name + "_0_1")}\n' + '\n'.join(sg) + ')\n'
