@@ -1,4 +1,5 @@
 """Stage-and-publish bookkeeping with rollback and next-run crash recovery."""
+
 import hashlib
 import json
 import logging
@@ -58,6 +59,7 @@ def source_counts(folder):
 
 def valid_library(path, symbol=False, expected=None):
     tree = loads(path.read_text(encoding='utf-8'))
+
     def numeric(node, kind, counts):
         fields = children(node, kind)
         if len(fields) != 1:
@@ -66,6 +68,7 @@ def valid_library(path, symbol=False, expected=None):
         if len(values) not in counts or not all(math.isfinite(v) for v in values):
             raise ValueError(f'invalid {kind}')
         return values
+
     if symbol:
         pins = list(descendants(tree, 'pin'))
         if expected is not None and len(pins) != expected:
@@ -103,7 +106,10 @@ def libraries_complete(folder):
             if data['version'] != 1 or not isinstance(data['files'], dict):
                 return False
             paths = [local_path(folder, name) for name in data['files']]
-            if not all(p.is_file() and digest(p) == data['files'][p.relative_to(folder).as_posix()] for p in paths):
+            if not all(
+                p.is_file() and digest(p) == data['files'][p.relative_to(folder).as_posix()]
+                for p in paths
+            ):
                 return False
             symbols = [p for p in paths if p.suffix == '.kicad_sym']
             footprints = [p for p in paths if p.suffix == '.kicad_mod']
@@ -112,9 +118,11 @@ def libraries_complete(folder):
             footprints = list(folder.glob('*.pretty/*.kicad_mod'))
             if any(not s.with_suffix('.pretty').is_dir() for s in symbols):
                 return False
-        return (bool(symbols and footprints)
-                and all(valid_library(p, True, counts[0] if counts else None) for p in symbols)
-                and all(valid_library(p, False, counts[1] if counts else None) for p in footprints))
+        return (
+            bool(symbols and footprints)
+            and all(valid_library(p, True, counts[0] if counts else None) for p in symbols)
+            and all(valid_library(p, False, counts[1] if counts else None) for p in footprints)
+        )
     except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
         return False
 
@@ -126,8 +134,11 @@ def recover(folder):
         return
     data = json.loads(journal.read_bytes())
     backup_name = data['backup']
-    if (data['version'] != 1 or not backup_name.startswith('.ee2kicad-backup-')
-            or Path(backup_name).name != backup_name):
+    if (
+        data['version'] != 1
+        or not backup_name.startswith('.ee2kicad-backup-')
+        or Path(backup_name).name != backup_name
+    ):
         raise ValueError('invalid recovery journal; preserve this folder and inspect it manually')
     backup = local_path(folder, backup_name)
     for entry in data['paths']:
@@ -169,8 +180,12 @@ def publish(stage, folder, paths):
                 saved = backup / relative
                 saved.parent.mkdir(parents=True, exist_ok=True)
                 atomic_write(saved, target.read_bytes())
-        atomic_write(folder / PENDING, json.dumps({'version': 1, 'backup': backup.name,
-                                                 'stage': stage.name, 'paths': entries}))
+        atomic_write(
+            folder / PENDING,
+            json.dumps(
+                {'version': 1, 'backup': backup.name, 'stage': stage.name, 'paths': entries}
+            ),
+        )
         for relative in paths:
             target = local_path(folder, relative)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -187,5 +202,11 @@ def publish(stage, folder, paths):
 
 
 def write_manifest(stage, paths, uuid):
-    atomic_write(stage / COMPLETE, json.dumps({'version': 1, 'uuid': uuid,
-                 'files': {path: digest(stage / path) for path in paths}}, sort_keys=True) + '\n')
+    atomic_write(
+        stage / COMPLETE,
+        json.dumps(
+            {'version': 1, 'uuid': uuid, 'files': {path: digest(stage / path) for path in paths}},
+            sort_keys=True,
+        )
+        + '\n',
+    )

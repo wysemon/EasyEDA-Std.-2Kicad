@@ -1,4 +1,5 @@
 """Small strict reader for the generated KiCad subset (no model interpretation)."""
+
 import json
 import re
 
@@ -41,7 +42,9 @@ def children(node, kind):
 
 
 def contains(node, kind):
-    return node[0] == kind or any(contains(part, kind) for part in node if isinstance(part, list) and part)
+    return node[0] == kind or any(
+        contains(part, kind) for part in node if isinstance(part, list) and part
+    )
 
 
 def descendants(node, kind):

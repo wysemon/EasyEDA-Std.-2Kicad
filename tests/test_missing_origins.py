@@ -1,4 +1,5 @@
 """Real regressions: origin-less ESP32 symbols must not be a metre from (0, 0)."""
+
 import copy
 import json
 import os
@@ -27,7 +28,7 @@ def test_real_missing_symbol_origin_uses_canvas(uuid, caplog):
     symbol = data['result']['dataStr']
     assert 'x' not in symbol['head'] and 'y' not in symbol['head']
     coords = Coordinates(symbol, symbol=True)
-    assert (coords.x, coords.y) == (3000., 4000.)
+    assert (coords.x, coords.y) == (3000.0, 4000.0)
     assert 'from canvas' in caplog.text
     c = convert_response(data)
     assert len(c.pins) == len(c.pads) == 16
@@ -61,7 +62,9 @@ def test_canvas_origin_matches_explicit_origin_without_changing_scale(fixture, s
     fallback = Coordinates(without_head_origin, symbol=symbol)
     assert (fallback.x, fallback.y) == (original.x, original.y)
     # The unit conversion remains exactly 10 mil per source drawing unit.
-    assert fallback.point(original.x + 10, original.y + 10) == pytest.approx((2.54, -2.54 if symbol else 2.54))
+    assert fallback.point(original.x + 10, original.y + 10) == pytest.approx(
+        (2.54, -2.54 if symbol else 2.54)
+    )
 
 
 @pytest.mark.parametrize('missing', [None, '', 'undefined', 'invalid'])
@@ -69,14 +72,14 @@ def test_partial_head_origin_falls_back_per_axis(missing):
     data = load(ESP32_IDS[0])['result']['dataStr']
     data['head'].update(x=2990, y=missing)
     coords = Coordinates(data, symbol=True)
-    assert (coords.x, coords.y) == (2990., 4000.)
+    assert (coords.x, coords.y) == (2990.0, 4000.0)
 
 
 def test_explicit_zero_origin_is_preserved():
     data = load(ESP32_IDS[0])['result']['dataStr']
     data['head'].update(x=0, y=0)
     coords = Coordinates(data, symbol=True)
-    assert (coords.x, coords.y) == (0., 0.)
+    assert (coords.x, coords.y) == (0.0, 0.0)
 
 
 def test_unrecoverable_origin_fails_without_guessing():
@@ -99,8 +102,13 @@ def test_kicad_import_preserves_near_origin_geometry(uuid, tmp_path):
         directory = tmp_path / key.lower()
         directory.mkdir()
         env[key] = str(directory)
-    run = subprocess.run([executable, 'sym', 'upgrade', '--force', str(symbol)],
-                         env=env, capture_output=True, text=True, timeout=30)
+    run = subprocess.run(
+        [executable, 'sym', 'upgrade', '--force', str(symbol)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     assert run.returncode == 0, run.stdout + run.stderr
     parsed = one(sexpr(symbol.read_text(encoding='utf-8')), 'symbol')
     pins = [p for unit in children(parsed, 'symbol') for p in children(unit, 'pin')]
@@ -115,15 +123,22 @@ def test_kicad_import_preserves_near_origin_geometry(uuid, tmp_path):
         assert all(abs(float(v)) < 50 for v in one(prop, 'at')[1:3])
     # The footprint's physical dimensions are independent of the missing symbol origin.
     pretty = tmp_path / 'libraries' / f'{c.name}.pretty'
-    run = subprocess.run([executable, 'fp', 'upgrade', '--force', str(pretty)],
-                         env=env, capture_output=True, text=True, timeout=30)
+    run = subprocess.run(
+        [executable, 'fp', 'upgrade', '--force', str(pretty)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     assert run.returncode == 0, run.stdout + run.stderr
     footprint = sexpr((pretty / f'{c.name}.kicad_mod').read_text(encoding='utf-8'))
     pads = children(footprint, 'pad')
     assert len(pads) == 16
     for p in pads:
         source = next(pad for pad in c.pads if pad.number == p[1])
-        assert list(map(float, one(p, 'size')[1:])) == pytest.approx([source.width, source.height], abs=1e-4)
+        assert list(map(float, one(p, 'size')[1:])) == pytest.approx(
+            [source.width, source.height], abs=1e-4
+        )
         assert list(map(float, one(p, 'at')[1:3])) == pytest.approx([source.x, source.y], abs=1e-4)
 
     # KiCad's ordinary SVG export auto-crops to the drawing and can hide this bug.
@@ -134,8 +149,13 @@ def test_kicad_import_preserves_near_origin_geometry(uuid, tmp_path):
     with_origin = tmp_path / 'origin-check.kicad_sym'
     with_origin.write_text(c.symbol.replace(opener, opener + marker), encoding='utf-8')
     svg_dir = tmp_path / 'svg'
-    run = subprocess.run([executable, 'sym', 'export', 'svg', '--output', str(svg_dir), str(with_origin)],
-                         env=env, capture_output=True, text=True, timeout=30)
+    run = subprocess.run(
+        [executable, 'sym', 'export', 'svg', '--output', str(svg_dir), str(with_origin)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
     assert run.returncode == 0, run.stdout + run.stderr
     svg = ET.parse(next(svg_dir.glob('*.svg'))).getroot()
     width = float(svg.attrib['width'].removesuffix('mm'))

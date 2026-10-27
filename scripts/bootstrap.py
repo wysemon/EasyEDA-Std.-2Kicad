@@ -1,4 +1,5 @@
 """Shared, stdlib-only setup refresh used before the package is installed."""
+
 import hashlib
 import subprocess
 import sys
@@ -17,7 +18,10 @@ def ensure_installed(root):
             return 0
         result = subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', str(root)], cwd=root)
         if result.returncode:
-            print('Setup failed; check your internet connection and Python/pip installation, then retry.', file=sys.stderr)
+            print(
+                'Setup failed; check your internet connection and Python/pip installation, then retry.',
+                file=sys.stderr,
+            )
             return 1
         marker.write_text(digest + '\n', encoding='ascii')
     except OSError as e:

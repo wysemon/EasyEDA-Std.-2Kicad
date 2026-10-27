@@ -12,7 +12,9 @@ NEW = 'f6ad09a5a9e24d199330c64690aa6c38'
 
 def pytest_configure(config):
     if os.environ.get('EE2KICAD_REQUIRE_KICAD') and not shutil.which('kicad-cli'):
-        raise pytest.UsageError('Native integration requires kicad-cli on PATH; no silent skip is allowed')
+        raise pytest.UsageError(
+            'Native integration requires kicad-cli on PATH; no silent skip is allowed'
+        )
 
 
 @pytest.fixture(autouse=True)

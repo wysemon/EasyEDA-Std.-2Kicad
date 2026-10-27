@@ -13,14 +13,15 @@ jobs:
     env:
       EE2KICAD_DISABLE_LIVE: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest -m "not live"
       - run: python -m ruff check .
+      - run: python -m ruff format --check .
   kicad:
     # Ubuntu 24.04's default package is KiCad 7; use the KiCad team's 8.0 PPA.
     # KiCad 9 is also exercised locally, not claimed as an additional CI matrix.
@@ -30,8 +31,8 @@ jobs:
       EE2KICAD_REQUIRE_KICAD: '1'
       EE2KICAD_REQUIRE_PCBNEW: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip

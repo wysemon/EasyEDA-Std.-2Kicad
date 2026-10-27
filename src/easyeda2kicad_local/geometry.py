@@ -1,8 +1,9 @@
 """Small SVG path reader, including endpoint-to-center elliptical arcs."""
+
 import math
 import re
 
-NUMBER = r"[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?"
+NUMBER = r'[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?'
 
 
 def numbers(text):
@@ -11,8 +12,12 @@ def numbers(text):
 
 def point_pairs(text, minimum=2):
     values = numbers(text)
-    if (re.sub(NUMBER, '', text).strip(' \t\r\n,') or len(values) < 2 * minimum
-            or len(values) % 2 or not all(math.isfinite(v) for v in values)):
+    if (
+        re.sub(NUMBER, '', text).strip(' \t\r\n,')
+        or len(values) < 2 * minimum
+        or len(values) % 2
+        or not all(math.isfinite(v) for v in values)
+    ):
         raise ValueError('invalid point-pair geometry')
     return list(zip(values[::2], values[1::2]))
 
@@ -22,7 +27,7 @@ def arc_points(start, values):
     rx, ry = abs(rx), abs(ry)
     end = (x, y)
     if start == end:
-        raise ValueError("coincident SVG arc endpoints")
+        raise ValueError('coincident SVG arc endpoints')
     if not rx or not ry:
         return [start, end]
     phi = math.radians(rotation)
@@ -43,19 +48,23 @@ def arc_points(start, values):
     if not sweep:
         delta -= 2 * math.pi
     # Circular arcs need exactly a midpoint; ellipses are approximated explicitly.
-    count = 2 if math.isclose(rx, ry, rel_tol=1e-6) else max(8, math.ceil(abs(delta) / .1))
+    count = 2 if math.isclose(rx, ry, rel_tol=1e-6) else max(8, math.ceil(abs(delta) / 0.1))
     result = []
     for i in range(count + 1):
         theta = a + delta * i / count
-        result.append((cx + c * rx * math.cos(theta) - s * ry * math.sin(theta),
-                       cy + s * rx * math.cos(theta) + c * ry * math.sin(theta)))
+        result.append(
+            (
+                cx + c * rx * math.cos(theta) - s * ry * math.sin(theta),
+                cy + s * rx * math.cos(theta) + c * ry * math.sin(theta),
+            )
+        )
     result[0], result[-1] = start, end
     return result
 
 
 def path_segments(path):
     """Yield (line|arc|ellipse, points) for M/L/H/V/A/Z. Reject other commands."""
-    i, command, point, origin = 0, None, (0., 0.), (0., 0.)
+    i, command, point, origin = 0, None, (0.0, 0.0), (0.0, 0.0)
 
     def skip_separators():
         nonlocal i
@@ -86,7 +95,7 @@ def path_segments(path):
             command = path[i]
             i += 1
         if command is None:
-            raise ValueError("path has no command")
+            raise ValueError('path has no command')
         upper = command.upper()
         if upper == 'Z':
             if point != origin:
@@ -95,12 +104,14 @@ def path_segments(path):
             continue
         count = {'M': 2, 'L': 2, 'H': 1, 'V': 1, 'A': 7}.get(upper)
         if count is None:
-            raise ValueError(f"unsupported SVG command {command}")
+            raise ValueError(f'unsupported SVG command {command}')
         values = [read_value(flag=upper == 'A' and index in (3, 4)) for index in range(count)]
         relative = command.islower()
         if upper in ('M', 'L'):
-            end = (values[0] + (point[0] if relative else 0),
-                   values[1] + (point[1] if relative else 0))
+            end = (
+                values[0] + (point[0] if relative else 0),
+                values[1] + (point[1] if relative else 0),
+            )
         elif upper == 'H':
             end = (values[0] + (point[0] if relative else 0), point[1])
         elif upper == 'V':

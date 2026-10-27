@@ -5,11 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "easyeda2kicad-local"
 version = "0.1.0"
-description = "Link-driven local EasyEDA Standard to KiCad converter"
+description = "Local 2D EasyEDA Standard to KiCad symbol and footprint converter"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = ["httpx>=0.27,<1", "typer>=0.12,<1", "rich>=13,<15"]
+
+[project.urls]
+Repository = "https://github.com/wysemon/EasyEDA-Std.-2Kicad"
+Issues = "https://github.com/wysemon/EasyEDA-Std.-2Kicad/issues"
+Documentation = "https://github.com/wysemon/EasyEDA-Std.-2Kicad#readme"
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "ruff>=0.11,<1"]
@@ -33,3 +38,6 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.format]
+quote-style = "single"

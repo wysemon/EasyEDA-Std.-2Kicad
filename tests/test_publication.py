@@ -1,4 +1,5 @@
 """Offline migration, staged publication, rollback and crash-recovery checks."""
+
 import json
 import os
 import shutil
@@ -17,7 +18,9 @@ from easyeda2kicad_local.workflow import libraries_complete, run_items
 
 @pytest.fixture(autouse=True)
 def forbid_component_requests(monkeypatch):
-    monkeypatch.setattr(EasyEDAClient, 'component', lambda *a: pytest.fail('cached operations must be offline'))
+    monkeypatch.setattr(
+        EasyEDAClient, 'component', lambda *a: pytest.fail('cached operations must be offline')
+    )
 
 
 def legacy(response, folder, *, old_name=False):
@@ -34,7 +37,10 @@ def legacy(response, folder, *, old_name=False):
         for path in [folder / f'{name}.kicad_sym', folder / f'{name}.pretty' / f'{name}.kicad_mod']:
             path.write_text(path.read_text().replace(c.name, name), encoding='utf-8')
     fp = next(folder.glob('*.pretty/*.kicad_mod'))
-    fp.write_text(fp.read_text().rstrip()[:-1] + '\n(model "legacy.step" (offset (xyz 0 0 0)))\n)\n', encoding='utf-8')
+    fp.write_text(
+        fp.read_text().rstrip()[:-1] + '\n(model "legacy.step" (offset (xyz 0 0 0)))\n)\n',
+        encoding='utf-8',
+    )
     return c, fp
 
 
@@ -54,7 +60,10 @@ def test_legacy_3d_cache_migrates_offline_and_is_idempotent(response, tmp_path, 
     assert all(not publication.footprint_has_model(p) for p in folder.glob('*.pretty/*.kicad_mod'))
     assert (folder / 'raw.json').read_bytes() == raw
     assert (models / 'legacy.step').read_bytes() == b'user owned model'
-    assert next(folder.glob('CREDITS.previous-*.txt')).read_text() == 'User attribution\nkeep verbatim\n'
+    assert (
+        next(folder.glob('CREDITS.previous-*.txt')).read_text()
+        == 'User attribution\nkeep verbatim\n'
+    )
     assert (folder / f'{c.name}.kicad_sym').exists()
     before = snapshot(folder)
     times = {p: p.stat().st_mtime_ns for p in folder.rglob('*') if p.is_file()}
@@ -128,8 +137,12 @@ def test_foreign_converter_owned_library_is_not_migrated(response, tmp_path, cap
 
 
 @pytest.mark.parametrize('existing', [False, True])
-@pytest.mark.parametrize('failure', ['symbol', 'footprint', 'credits', 'manifest', 'before-publish', 'during-publish'])
-def test_failure_never_publishes_partial_or_destroys_previous(response, tmp_path, monkeypatch, existing, failure):
+@pytest.mark.parametrize(
+    'failure', ['symbol', 'footprint', 'credits', 'manifest', 'before-publish', 'during-publish']
+)
+def test_failure_never_publishes_partial_or_destroys_previous(
+    response, tmp_path, monkeypatch, existing, failure
+):
     folder = tmp_path / 'component'
     if existing:
         write_conversion(response, folder)
@@ -137,20 +150,29 @@ def test_failure_never_publishes_partial_or_destroys_previous(response, tmp_path
     (folder / 'keep.txt').write_text('unrelated user file')
     before = snapshot(folder)
     original_write = converter.atomic_write
-    suffix = {'symbol': '.kicad_sym', 'footprint': '.kicad_mod', 'credits': 'CREDITS.txt'}.get(failure)
+    suffix = {'symbol': '.kicad_sym', 'footprint': '.kicad_mod', 'credits': 'CREDITS.txt'}.get(
+        failure
+    )
+
     def fail_write(path, content):
         if suffix and path.name.endswith(suffix):
             original_write(path, b'partial staged write')
             raise OSError('injected write failure')
         original_write(path, content)
+
     monkeypatch.setattr(converter, 'atomic_write', fail_write)
     if failure in ('manifest', 'before-publish'):
+
         def fail(*args):
             raise OSError('injected before final publish')
-        monkeypatch.setattr(converter, 'write_manifest' if failure == 'manifest' else 'publish', fail)
+
+        monkeypatch.setattr(
+            converter, 'write_manifest' if failure == 'manifest' else 'publish', fail
+        )
     if failure == 'during-publish':
         original_replace = publication.os.replace
         calls = 0
+
         def replace(source, target):
             nonlocal calls
             if '.ee2kicad-stage-' in str(source) and Path(source).name == Path(target).name:
@@ -158,6 +180,7 @@ def test_failure_never_publishes_partial_or_destroys_previous(response, tmp_path
                 if calls == 2:
                     raise OSError('injected publication failure')
             original_replace(source, target)
+
         monkeypatch.setattr(publication.os, 'replace', replace)
     response['result']['description'] = 'Changed source to make replacement observable'
     with pytest.raises(OSError, match='injected'):
@@ -169,7 +192,9 @@ def test_failure_never_publishes_partial_or_destroys_previous(response, tmp_path
 
 
 @pytest.mark.parametrize('existing', [False, True])
-def test_failed_validation_keeps_previous_and_retry_publishes(response, tmp_path, monkeypatch, existing):
+def test_failed_validation_keeps_previous_and_retry_publishes(
+    response, tmp_path, monkeypatch, existing
+):
     folder, raw = install_cache(tmp_path, response)
     if existing:
         write_conversion(response, folder)
@@ -198,7 +223,7 @@ def test_corrupt_libraries_rebuild_and_preserve_edited_bytes(response, tmp_path)
     folder, _ = install_cache(tmp_path, response)
     c = write_conversion(response, folder)
     symbol = folder / f'{c.name}.kicad_sym'
-    broken = c.symbol[:len(c.symbol) // 2]
+    broken = c.symbol[: len(c.symbol) // 2]
     symbol.write_text(broken, encoding='utf-8')
     assert not libraries_complete(folder)
     assert run_items([response['result']['uuid']], tmp_path) == 0
@@ -208,13 +233,22 @@ def test_corrupt_libraries_rebuild_and_preserve_edited_bytes(response, tmp_path)
 
 @pytest.mark.parametrize('kind', ['symbol', 'footprint'])
 @pytest.mark.parametrize('encoding', ['invalid-utf8', 'utf16'])
-def test_unreadable_owned_library_rebuilds_offline_and_preserves_bytes(response, tmp_path, kind, encoding):
+def test_unreadable_owned_library_rebuilds_offline_and_preserves_bytes(
+    response, tmp_path, kind, encoding
+):
     folder, raw = install_cache(tmp_path, response)
     c = write_conversion(response, folder)
-    path = (folder / f'{c.name}.kicad_sym' if kind == 'symbol' else
-            folder / f'{c.name}.pretty' / f'{c.name}.kicad_mod')
+    path = (
+        folder / f'{c.name}.kicad_sym'
+        if kind == 'symbol'
+        else folder / f'{c.name}.pretty' / f'{c.name}.kicad_mod'
+    )
     original = path.read_bytes()
-    damaged = b'\xff\xfe damaged\x00bytes' if encoding == 'invalid-utf8' else original.decode('utf-8').encode('utf-16')
+    damaged = (
+        b'\xff\xfe damaged\x00bytes'
+        if encoding == 'invalid-utf8'
+        else original.decode('utf-8').encode('utf-16')
+    )
     path.write_bytes(damaged)
     assert not libraries_complete(folder)
     uuid = response['result']['uuid']
@@ -268,6 +302,7 @@ def test_rollback_failure_keeps_recovery_material(response, tmp_path, monkeypatc
     original = publication.os.replace
     publishing = 0
     failed = False
+
     def replace(source, target):
         nonlocal publishing, failed
         if '.ee2kicad-stage-' in str(source) and Path(source).name == Path(target).name:
@@ -278,6 +313,7 @@ def test_rollback_failure_keeps_recovery_material(response, tmp_path, monkeypatc
         elif failed and Path(target).suffix == '.kicad_sym':
             raise OSError('rollback interrupted')
         return original(source, target)
+
     monkeypatch.setattr(publication.os, 'replace', replace)
     response['result']['description'] = 'replacement'
     with pytest.raises(OSError, match='rollback interrupted'):
@@ -305,11 +341,13 @@ def test_legacy_migration_preserves_separate_package_cache(response, tmp_path):
     assert libraries_complete(folder)
 
 
-def test_replacement_preserves_existing_source_and_libraries_on_real_process_exit(response, tmp_path):
+def test_replacement_preserves_existing_source_and_libraries_on_real_process_exit(
+    response, tmp_path
+):
     folder, raw = install_cache(tmp_path, response)
     write_conversion(response, folder)
     before = snapshot(folder)
-    script = '''
+    script = """
 import json, os, sys
 from pathlib import Path
 from easyeda2kicad_local import publication
@@ -328,8 +366,10 @@ def crash(source, target):
     original(source, target)
 publication.os.replace = crash
 write_conversion(data, folder)
-'''
-    run = subprocess.run([sys.executable, '-c', script, str(folder)], timeout=30, env=dict(os.environ))
+"""
+    run = subprocess.run(
+        [sys.executable, '-c', script, str(folder)], timeout=30, env=dict(os.environ)
+    )
     assert run.returncode == 23
     assert (folder / publication.PENDING).exists()
     assert not libraries_complete(folder)
@@ -347,9 +387,11 @@ def test_force_does_not_replace_cache_until_validation_passes(response, tmp_path
     response['result']['description'] = 'Fresh response'
     fresh = json.dumps(response).encode()
     calls = []
+
     def fetch(self, uuid):
         calls.append(uuid)
         return fresh
+
     monkeypatch.setattr(EasyEDAClient, 'component', fetch)
     monkeypatch.setattr(converter, 'validate_libraries', lambda *a: False)
     uuid = response['result']['uuid']

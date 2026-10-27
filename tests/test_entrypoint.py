@@ -22,7 +22,9 @@ def test_no_args_reads_multiple_links(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     calls = []
     monkeypatch.setattr(cli, 'run_items', lambda items, root, **kwargs: calls.append(items) or 0)
-    assert invoke_main(monkeypatch, [], f'https://www.easyeda.com/component/{OLD}#x\n{NEW}\n\n') == 0
+    assert (
+        invoke_main(monkeypatch, [], f'https://www.easyeda.com/component/{OLD}#x\n{NEW}\n\n') == 0
+    )
     assert calls == [[OLD, NEW]]
 
 
@@ -53,7 +55,9 @@ def test_empty_interactive_exits_without_fetch(monkeypatch, tmp_path, capsys):
     assert invoke_main(monkeypatch, [], '') == 0
 
 
-@pytest.mark.parametrize('args,cached', [([NEW], False), (['fetch', NEW], False), (['convert', NEW], True)])
+@pytest.mark.parametrize(
+    'args,cached', [([NEW], False), (['fetch', NEW], False), (['convert', NEW], True)]
+)
 def test_alias_entrypoint_dispatch(monkeypatch, args, cached):
     calls = []
     monkeypatch.setattr(cli, 'run_items', lambda items, root, **kw: calls.append((items, kw)) or 0)
@@ -61,12 +65,13 @@ def test_alias_entrypoint_dispatch(monkeypatch, args, cached):
     assert calls[0][0] == [NEW]
     assert calls[0][1].get('cached_only', False) is cached
     if not cached:
-        assert calls[0][1]['delay'] == 4.
+        assert calls[0][1]['delay'] == 4.0
 
 
 def test_alias_declared():
     import tomllib
     from pathlib import Path
+
     config = tomllib.loads((Path(__file__).parents[1] / 'pyproject.toml').read_text())
     assert config['project']['scripts']['ee2kicad'] == 'easyeda2kicad_local.cli:main'
 
@@ -121,7 +126,7 @@ def test_403_stops_run_with_friendly_fix(monkeypatch, tmp_path, capsys):
     assert 'Traceback' not in captured.err
     assert '0 succeeded, 1 failed, 0 skipped' in captured.out
     assert 'Not processed: 1' in captured.out
-    assert len(calls) == 2 and clock.sleeps == [0., 30.]
+    assert len(calls) == 2 and clock.sleeps == [0.0, 30.0]
 
 
 def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
@@ -135,10 +140,21 @@ def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
     response['result']['title'] = '你好 électricité'
     response['result']['owner']['nickname'] = '作者'
     (folder / 'raw.json').write_text(json.dumps(response, ensure_ascii=False), encoding='utf-8')
-    result = subprocess.run([sys.executable, '-m', 'easyeda2kicad_local', 'convert',
-                             response['result']['uuid'], '-o', str(output)],
-                            env=dict(os.environ, PYTHONIOENCODING='ascii', PYTHONUTF8='0'),
-                            capture_output=True, encoding='utf-8', timeout=30)
+    result = subprocess.run(
+        [
+            sys.executable,
+            '-m',
+            'easyeda2kicad_local',
+            'convert',
+            response['result']['uuid'],
+            '-o',
+            str(output),
+        ],
+        env=dict(os.environ, PYTHONIOENCODING='ascii', PYTHONUTF8='0'),
+        capture_output=True,
+        encoding='utf-8',
+        timeout=30,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     assert '输出' in result.stdout and '1 succeeded' in result.stdout
     assert '作者' in (folder / 'CREDITS.txt').read_text(encoding='utf-8')
@@ -146,5 +162,6 @@ def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
 
 def test_version_entrypoint(monkeypatch, capsys):
     from easyeda2kicad_local import __version__
+
     assert invoke_main(monkeypatch, ['--version']) == 0
     assert capsys.readouterr().out.strip() == f'easyeda2kicad-local {__version__}'

@@ -1,2 +1,11 @@
-run.sh text eol=lf
-run.bat text eol=crlf
+* text=auto
+
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.bat text eol=crlf
+
+# Do not let checkout settings change captured responses or verbatim licenses.
+tests/fixtures/** -text

@@ -1,4 +1,5 @@
 """Opt-in single-component smoke test. Never selected by the default suite."""
+
 import pytest
 
 from easyeda2kicad_local.client import EasyEDAClient

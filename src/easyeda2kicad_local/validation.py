@@ -1,4 +1,5 @@
 """Optional KiCad validation that never upgrades the user's generated originals."""
+
 import logging
 import os
 import shutil
@@ -12,7 +13,9 @@ log = logging.getLogger(__name__)
 def validate_libraries(folder: Path, name: str):
     executable = shutil.which('kicad-cli')
     if executable is None:
-        print('Validation unavailable: install KiCad 8/9 and add kicad-cli to PATH, then retry --validate.')
+        print(
+            'Validation unavailable: install KiCad 8/9 and add kicad-cli to PATH, then retry --validate.'
+        )
         return False
     passed = True
     with tempfile.TemporaryDirectory(prefix='ee2kicad-validate-') as temporary:
@@ -32,9 +35,15 @@ def validate_libraries(folder: Path, name: str):
         env['KICAD_CONFIG_HOME'] = str(work / 'kicad-config')
         for kind, path in [('sym', symbol), ('fp', pretty)]:
             try:
-                result = subprocess.run([executable, kind, 'upgrade', '--force', str(path)],
-                                        env=env, capture_output=True, text=True,
-                                        encoding='utf-8', errors='replace', timeout=60)
+                result = subprocess.run(
+                    [executable, kind, 'upgrade', '--force', str(path)],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=60,
+                )
                 ok = result.returncode == 0
                 log.debug('KiCad %s validation output: %s %s', kind, result.stdout, result.stderr)
             except subprocess.TimeoutExpired:
@@ -42,10 +51,15 @@ def validate_libraries(folder: Path, name: str):
                 log.error('KiCad %s validation timed out after 60 seconds.', kind)
             except OSError as e:
                 ok = False
-                log.error('Cannot run KiCad %s validation: %s; check the KiCad installation.', kind, e)
+                log.error(
+                    'Cannot run KiCad %s validation: %s; check the KiCad installation.', kind, e
+                )
                 log.debug('KiCad validation could not run', exc_info=True)
             print(f'Validation {kind}: {"PASS" if ok else "FAIL"} ({name})')
             if not ok:
-                log.error('KiCad %s validation failed; check the generated library in KiCad or rerun with --verbose.', kind)
+                log.error(
+                    'KiCad %s validation failed; check the generated library in KiCad or rerun with --verbose.',
+                    kind,
+                )
             passed &= ok
     return passed

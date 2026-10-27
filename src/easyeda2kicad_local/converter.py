@@ -1,4 +1,5 @@
 """Conversion orchestration and compatibility exports for the original API."""
+
 import json
 import logging
 import tempfile
@@ -64,7 +65,6 @@ class Conversion:
     credits: str
 
 
-
 def convert_response(response, package=None, *, library_name=None):
     if response.get('success') is not True:
         raise ValueError('API response did not succeed')
@@ -76,14 +76,20 @@ def convert_response(response, package=None, *, library_name=None):
     if not package:
         raise ValueError('missing footprint; fetch packageDetail or cache package_raw.json')
     fp = document(package['dataStr'])
-    name = library_name or safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
+    name = (
+        library_name or safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
+    )
     sc, fc = Coordinates(data, True), Coordinates(fp)
     pins, pads, sg, fg = [], [], [], []
     for raw in fp.get('shape', []):
         fields = raw.split('~')
         kind = fields[0]
         layer_index = {'TRACK': 2, 'ARC': 2, 'SOLIDREGION': 1, 'RECT': 5, 'CIRCLE': 5}.get(kind)
-        copper = layer_index is not None and len(fields) > layer_index and fields[layer_index] in COPPER_LAYERS
+        copper = (
+            layer_index is not None
+            and len(fields) > layer_index
+            and fields[layer_index] in COPPER_LAYERS
+        )
         try:
             if kind == 'PAD':
                 pads.append(parse_pad(raw, fc))
@@ -91,7 +97,9 @@ def convert_response(response, package=None, *, library_name=None):
                 fg.extend(footprint_graphic(raw, fc))
         except (ValueError, IndexError, KeyError, TypeError) as e:
             if kind in ('PAD', 'VIA', 'HOLE') or copper:
-                raise ValueError(f'{result["uuid"]}: invalid essential footprint {kind}: {e}; no new libraries published') from e
+                raise ValueError(
+                    f'{result["uuid"]}: invalid essential footprint {kind}: {e}; no new libraries published'
+                ) from e
             log.warning('%s: skipping optional footprint element (%s): %s', result['uuid'], e, raw)
     for raw in data.get('shape', []):
         kind = raw.split('~', 1)[0]
@@ -102,7 +110,9 @@ def convert_response(response, package=None, *, library_name=None):
                 sg.extend(symbol_graphic(raw, sc))
         except (ValueError, IndexError, KeyError, TypeError) as e:
             if kind == 'P':
-                raise ValueError(f'{result["uuid"]}: invalid essential symbol pin: {e}; no new libraries published') from e
+                raise ValueError(
+                    f'{result["uuid"]}: invalid essential symbol pin: {e}; no new libraries published'
+                ) from e
             log.warning('%s: skipping optional symbol element (%s): %s', result['uuid'], e, raw)
     for number, count in Counter(p.number for p in pins).items():
         if count > 1:
@@ -125,9 +135,12 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
     recover(folder)
     with tempfile.TemporaryDirectory(prefix='.ee2kicad-stage-', dir=folder.parent) as temporary:
         stage = Path(temporary)
-        artifacts = {f'{converted.name}.kicad_sym': converted.symbol,
-                     f'{converted.name}.pretty/{converted.name}.kicad_mod': converted.footprint,
-                     'CREDITS.txt': converted.credits, **(sources or {})}
+        artifacts = {
+            f'{converted.name}.kicad_sym': converted.symbol,
+            f'{converted.name}.pretty/{converted.name}.kicad_mod': converted.footprint,
+            'CREDITS.txt': converted.credits,
+            **(sources or {}),
+        }
         # Regenerate converter-owned pre-UUID names as well, so registered old
         # libraries lose their model references without deleting any user files.
         for old in folder.glob('*.pretty/*.kicad_mod'):
@@ -135,24 +148,39 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                 tree = loads(old.read_text(encoding='utf-8'))
             except ValueError:
                 continue  # A damaged current file can still be replaced safely.
-            if (children(tree, 'generator') == [['generator', 'easyeda2kicad-local']]
-                    and footprint_has_model(old) and old.stem != converted.name):
+            if (
+                children(tree, 'generator') == [['generator', 'easyeda2kicad-local']]
+                and footprint_has_model(old)
+                and old.stem != converted.name
+            ):
                 old_symbol = folder / f'{old.stem}.kicad_sym'
                 source_uuids = []
                 if old_symbol.exists():
                     old_tree = loads(old_symbol.read_text(encoding='utf-8'))
-                    source_uuids = [p[2] for symbol in children(old_tree, 'symbol')
-                                    for p in children(symbol, 'property') if p[1] == 'EasyEDA UUID']
+                    source_uuids = [
+                        p[2]
+                        for symbol in children(old_tree, 'symbol')
+                        for p in children(symbol, 'property')
+                        if p[1] == 'EasyEDA UUID'
+                    ]
                 if source_uuids != [response['result']['uuid']]:
-                    log.warning('Leaving unassociated legacy library %s untouched; inspect/remove its model reference manually.', old)
+                    log.warning(
+                        'Leaving unassociated legacy library %s untouched; inspect/remove its model reference manually.',
+                        old,
+                    )
                     continue
                 if tree[1] != old.stem or safe_name(old.stem) != old.stem:
-                    raise ValueError(f'Cannot safely migrate legacy footprint {old}; move it aside first')
+                    raise ValueError(
+                        f'Cannot safely migrate legacy footprint {old}; move it aside first'
+                    )
                 alias = convert_response(response, package, library_name=old.stem)
                 artifacts[old.relative_to(folder).as_posix()] = alias.footprint
                 if old_symbol.exists():
                     artifacts[old_symbol.name] = alias.symbol
-                log.warning('Migrating legacy 3D-era library %s to 2D; existing model files are kept.', old.stem)
+                log.warning(
+                    'Migrating legacy 3D-era library %s to 2D; existing model files are kept.',
+                    old.stem,
+                )
         credits = folder / 'CREDITS.txt'
         if credits.is_file() and credits.read_bytes() != converted.credits.encode('utf-8'):
             saved = f'CREDITS.previous-{digest(credits)[:12]}.txt'
@@ -174,32 +202,48 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
         for relative, content in list(artifacts.items()):
             target = local_path(folder, relative)
             encoded = content.encode('utf-8') if isinstance(content, str) else content
-            if (target.suffix in ('.kicad_sym', '.kicad_mod') and target.is_file()
-                    and target.read_bytes() != encoded
-                    and (relative not in previous or digest(target) != previous[relative])):
+            if (
+                target.suffix in ('.kicad_sym', '.kicad_mod')
+                and target.is_file()
+                and target.read_bytes() != encoded
+                and (relative not in previous or digest(target) != previous[relative])
+            ):
                 saved = relative + f'.previous-{digest(target)[:12]}'
                 artifacts[saved] = target.read_bytes()
                 log.warning('Modified or legacy library preserved in %s before rebuilding.', saved)
         for relative, content in artifacts.items():
             target = local_path(folder, relative)
-            if (target.exists() and target.suffix in ('.kicad_sym', '.kicad_mod')
-                    and relative not in previous):
+            if (
+                target.exists()
+                and target.suffix in ('.kicad_sym', '.kicad_mod')
+                and relative not in previous
+            ):
                 try:
                     text = target.read_text(encoding='utf-8')
                 except UnicodeError as e:
-                    raise ValueError(f'Cannot confirm ownership of unreadable library: {target}; move it aside first') from e
-                if ('(generator "easyeda2kicad-local")' not in text
-                        and '(generator easyeda2kicad-local)' not in text):
-                    raise ValueError(f'Refusing to overwrite an unrelated library: {target}; move it aside first')
+                    raise ValueError(
+                        f'Cannot confirm ownership of unreadable library: {target}; move it aside first'
+                    ) from e
+                if (
+                    '(generator "easyeda2kicad-local")' not in text
+                    and '(generator easyeda2kicad-local)' not in text
+                ):
+                    raise ValueError(
+                        f'Refusing to overwrite an unrelated library: {target}; move it aside first'
+                    )
             path = local_path(stage, relative)
             path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write(path, content)
         if not libraries_complete(stage):
-            raise ValueError('Generated library structure is incomplete; previous libraries were kept')
+            raise ValueError(
+                'Generated library structure is incomplete; previous libraries were kept'
+            )
         if validate:
             for symbol in stage.glob('*.kicad_sym'):
                 if not validate_libraries(stage, symbol.stem):
-                    raise ValueError('KiCad validation failed or unavailable; previous libraries were kept. Check KiCad or use --verbose.')
+                    raise ValueError(
+                        'KiCad validation failed or unavailable; previous libraries were kept. Check KiCad or use --verbose.'
+                    )
         paths = list(artifacts)
         write_manifest(stage, paths, response['result']['uuid'])
         publish(stage, folder, paths)
