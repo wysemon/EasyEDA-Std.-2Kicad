@@ -155,7 +155,8 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 - Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols with nonempty `subparts` are rejected; unit 1 alone is not a complete component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
-- Pad/text rotation signs and true oval-slot orientation still need a source-to-KiCad comparison.
+- Real asymmetric pads and an oval USB-C slot now have source-to-native-KiCad checks. Some custom shapes, rear-side conventions and text placement still need real component comparisons.
+- Courtyards cover pads, holes and non-text body outlines, with 0.25 mm clearance. They are a starting point, not a clearance certification.
 - Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.
 - Public component data may have third-party restrictions. Attribution does not grant redistribution rights. Review the source and each generated `CREDITS.txt`.
 

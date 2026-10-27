@@ -59,7 +59,13 @@ Do not discard either speaker connection. TP4056 has four pins. Both packages ha
 These mappings match KiCad 9's Standard importer and the layer names embedded
 in our real fixtures. Unmapped drawing layers warn; unknown pad layers fail.
 We do not map model layer 19 or add inner-copper support in this audit.
-Generate F.CrtYd from declared geometry BBox plus 0.25 mm (include pad extents).
+Generate F.CrtYd from exported pads, holes and non-text physical outlines,
+with 0.25 mm margin rounded outwards to a 0.05 mm grid. Do not use source BBox
+for courtyards: it can be stale or include remote documentation/text. Include
+copper/paste/mask, silkscreen, assembly, Edge.Cuts and component shape User.3;
+exclude documentation, lead/marking user layers and text. Rotated pad extents
+are conservative; custom pads use actual transformed vertices. Arc bounds
+include only extrema on the arc, plus stroke width, not the full circle.
 KiCad 8/9 modern S-expressions use start/mid/end arcs. SVG circular arcs are
 converted through the SVG endpoint-to-center algorithm; elliptical arcs are
 sampled as polylines and reported. No third-party conversion source is copied.
@@ -153,7 +159,9 @@ MAX98357A symbol sizes before/after the cap (mm): SPKR 3.175 (missing size,
 9 pt fallback) → 1.905; I2S MONO AMP 2.293056 (6.5 pt) → 1.905;
 MAX98357A 2.822222 (8 pt) → 1.905.
 
-**EasyEDA pad/text rotation sign and slot orientation remain unverified.**
+**Historical status: pad/text rotation sign and slot orientation remain unverified
+in the original two fixtures alone.** The audit below adds real pad/slot evidence;
+full text layout and genuine rear/custom source examples remain limited.
 The old fixture has circular round pads at 180 degrees. The newer fixture has
 square pads at 0/90 degrees. These symmetric shapes cannot establish rotation
 sign. Both fixtures have holeRadius 1.968 and holeLength 3.937 drawing units:
@@ -162,10 +170,9 @@ slot. The synthesized slot/rotation tests validate serialization only; they do
 not verify EasyEDA's physical drilling convention. The earlier stock KiCad
 checks establish KiCad angle units, not EasyEDA's pad/text rotation sign.
 
-A public Standard component link/UUID or raw component JSON with an asymmetric
-rotated pad and a genuine oval drill slot is requested before changing signs
-or claiming orientation verification. A source screenshot/dimensioned drawing
-would also allow checking the output against the intended drill axis.
+The audit obtained trustworthy examples from KiCad's stored EasyEDA Standard
+board. Additional genuine custom-polygon and rear-mounted samples, with a
+source drawing, are still useful for checking those remaining cases.
 
 SVG arcs now read flags as individual characters, so compact `01`, `10`, and
 flags followed immediately by an endpoint number are supported. Client base
@@ -292,3 +299,42 @@ The audit environment denied access to that documentation host. Corrections
 above rely on KiCad's authoritative importer plus the embedded real source
 layer tables; no rules were guessed from the inaccessible pages. No importer
 implementation code was copied.
+
+## Verified pad/slot evidence and courtyard bounds
+
+`tests/fixtures/geometry/real_pad_examples.json` contains unmodified excerpts
+from KiCad's ESP32-PICO-D4 smart-watch Standard test board at the audit reference
+commit above. Its provenance and separate CC-BY-NC-SA 3.0 license are included.
+No component API requests are needed to run these tests.
+
+The switch has rectangular 4.3307 × 7.4803-unit pads at **124 degrees**.
+Their source polygon corners agree with KiCad's native EasyEDA import and our
+native-loaded output. The positive serialized pad angle was correct and stays.
+KiCad rotates local pad coordinates counterclockwise in a Y-down frame, so the
+inverse transform for source polygon vertices uses **positive** math rotation.
+The former negative inverse rotated custom vertices a second time. A clearly
+labeled derived POLYGON calibration, retaining these real source corners,
+now agrees with both native importers. This does not establish every genuine
+custom-pad or offset-anchor convention.
+
+The USB-C pad 19 has width 4.3307, height 9.4488, rotation 270, hole radius
+1.2795 and holeLength 7.8741 units. Its hole-center points are horizontal and
+5.3151 units apart (length minus diameter). Native KiCad imports local drill
+sizes **0.65 × 2.0 mm**, rotating the long local Y axis into world X. We now put
+holeLength on the longer local pad axis, matching the importer; previously it
+always went on X and the hole turned 90 degrees. The 0.01 mm threshold still
+suppresses rounding-only slots in all six original fixtures.
+
+Native geometry tests compare pad position, angle, layers, polygon outlines,
+drill dimensions and world hole bounding boxes. Rear-side calibration changes
+an SMD source layer to B.Cu and agrees with native KiCad; a genuine asymmetric
+rear-mounted component and offset/independently angled slots remain unverified.
+The real rotated TEXT retains its source angle/size; the angle sign matches
+KiCad's importer implementation, but baseline/justification/mirroring and full
+visual text layout are not claimed to match. No sign or size change was made
+to footprint text in this audit.
+
+Courtyards no longer miss extended silkscreen/body outlines or custom polygons,
+and remote text/stale BBox no longer inflates them. They are conservative 2D
+bounds, not an IPC compliance or manufacturability guarantee. They remain
+F.CrtYd; rear-side courtyard policy needs a genuine source comparison.
