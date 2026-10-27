@@ -89,13 +89,16 @@ def convert_response(response, package=None, *, library_name=None):
         raise ValueError('invalid component UUID in source response')
     data = unit_one(document(result['dataStr']))
     package = package or result.get('packageDetail')
-    if not package:
+    if not package and data['head'].get('puuid'):
         raise ValueError('missing footprint; fetch packageDetail or cache package_raw.json')
-    fp = document(package['dataStr'])
+    fp = document(package['dataStr']) if package else {'head': {}, 'shape': []}
+    if not package:
+        log.warning('%s: symbol only: no footprint in source', result['uuid'])
     name = (
         library_name or safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
     )
-    sc, fc = Coordinates(data, True), Coordinates(fp)
+    sc = Coordinates(data, True)
+    fc = Coordinates(fp) if package else None
     pins, pads, sg, fg = [], [], [], []
     mechanical_skipped = 0
     essential_errors = []
@@ -177,12 +180,12 @@ def convert_response(response, package=None, *, library_name=None):
         if count > 1:
             log.warning('Duplicate symbol pin number %s (%s records retained)', number, count)
     missing = {p.number for p in pins} - {p.number for p in pads}
-    if missing:
+    if package and missing:
         log.warning('Symbol pin numbers missing from footprint: %s', ', '.join(sorted(missing)))
-    if not pins or not pads:
+    if not pins or (package and not pads):
         raise ValueError('no usable pins or pads; refusing empty library')
-    footprint = render_footprint(name, fp, fc, pads, fg)
-    symbol = render_symbol(result, data, name, sc, sg, pins)
+    footprint = render_footprint(name, fp, fc, pads, fg) if package else ''
+    symbol = render_symbol(result, data, name, sc, sg, pins, has_footprint=bool(package))
     credits = render_credits(result, data, fp, package, name)
     return Conversion(name, pins, pads, symbol, footprint, credits)
 
@@ -203,10 +206,11 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
         stage = Path(temporary)
         artifacts = {
             f'{converted.name}.kicad_sym': converted.symbol,
-            f'{converted.name}.pretty/{converted.name}.kicad_mod': converted.footprint,
             'CREDITS.txt': converted.credits,
             **(sources or {}),
         }
+        if converted.footprint:
+            artifacts[f'{converted.name}.pretty/{converted.name}.kicad_mod'] = converted.footprint
         # Regenerate converter-owned pre-UUID names as well, so registered old
         # libraries lose their model references without deleting any user files.
         for old in folder.glob('*.pretty/*.kicad_mod'):

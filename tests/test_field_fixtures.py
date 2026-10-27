@@ -93,3 +93,59 @@ def test_invalid_bare_copper_polygon_still_fails(path):
     response['result']['packageDetail']['dataStr']['shape'].append(f'SOLIDREGION~1~~{path}~solid')
     with pytest.raises(ValueError, match='invalid essential footprint SOLIDREGION'):
         convert_response(response)
+
+
+BUZZER = '82015f7d9a6543b7b998917289a50b78'
+
+
+def test_symbol_only_exports_no_invented_footprint(caplog):
+    converted = convert_response(load(BUZZER))
+    assert len(converted.pins) == 2 and not converted.pads and not converted.footprint
+    symbol = children(loads(converted.symbol), 'symbol')[0]
+    assert [p[2] for p in children(symbol, 'property') if p[1] == 'Footprint'] == ['']
+    assert 'symbol only: no footprint in source' in converted.credits
+    assert 'symbol only: no footprint in source' in caplog.text
+
+
+def test_symbol_only_cached_workflow_and_completion(tmp_path, monkeypatch, capsys):
+    from easyeda2kicad_local.client import EasyEDAClient
+    from easyeda2kicad_local.publication import libraries_complete
+    from easyeda2kicad_local.workflow import run_items
+
+    folder = tmp_path / 'buzzer'
+    folder.mkdir()
+    raw = (FIXTURES / f'{BUZZER}.json').read_bytes()
+    (folder / 'raw.json').write_bytes(raw)
+    monkeypatch.setattr(EasyEDAClient, 'component', lambda *_: pytest.fail('No network allowed'))
+    assert run_items([BUZZER], tmp_path, cached_only=True) == 0
+    report = capsys.readouterr().out
+    assert '1 succeeded, 0 failed' in report and 'Succeeded with warning: 1' in report
+    assert 'Symbol Libraries' in report and 'Footprint Libraries' not in report
+    assert libraries_complete(folder, expected_uuid=BUZZER)
+    assert not list(folder.glob('*.pretty'))
+    assert (folder / 'raw.json').read_bytes() == raw
+    assert 'succeeded-with-warning' in (tmp_path / 'fetch_log.tsv').read_text()
+    assert run_items([BUZZER], tmp_path) == 0
+    assert '1 skipped' in capsys.readouterr().out
+
+
+def test_known_footprint_not_silently_downgraded_to_symbol_only():
+    response = load(HEADER)
+    response['result'].pop('packageDetail')
+    with pytest.raises(ValueError, match='missing footprint'):
+        convert_response(response)
+
+
+def test_symbol_only_failed_validation_preserves_existing(tmp_path, monkeypatch):
+    from test_workflow import snapshot
+
+    from easyeda2kicad_local.converter import write_conversion
+
+    folder = tmp_path / 'buzzer'
+    folder.mkdir()
+    (folder / 'user.txt').write_bytes(b'keep')
+    before = snapshot(folder)
+    monkeypatch.setattr('easyeda2kicad_local.converter.validate_libraries', lambda *_: False)
+    with pytest.raises(ValueError, match='KiCad validation failed'):
+        write_conversion(load(BUZZER), folder, validate=True)
+    assert snapshot(folder) == before

@@ -225,14 +225,14 @@ def unit_one(data):
     )
 
 
-def render_symbol(result, data, name, sc, sg, pins):
+def render_symbol(result, data, name, sc, sg, pins, *, has_footprint=True):
     """Render body, pins and source metadata with a matching footprint reference."""
     para = data['head'].get('c_para') or {}
     source = f'https://easyeda.com/component/{result["uuid"]}'
     properties = {
         'Reference': prefix(para.get('pre')),
         'Value': result.get('title', name),
-        'Footprint': f'{name}:{name}',
+        'Footprint': f'{name}:{name}' if has_footprint else '',
         'Datasheet': para.get('link') or '',
         'Description': short_description(result.get('description') or ''),
         'Author': owner(result),

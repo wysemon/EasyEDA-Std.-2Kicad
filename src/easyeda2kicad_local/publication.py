@@ -105,7 +105,13 @@ def source_counts(folder):
         raise ValueError('multi-unit cache is incomplete')
     package = result.get('packageDetail')
     if not package:
-        package = json.loads(read_limited(folder / 'package_raw.json'))['result']
+        if symbol['head'].get('puuid'):
+            package = json.loads(read_limited(folder / 'package_raw.json'))['result']
+        else:
+            pins = sum(raw.split('~', 1)[0] == 'P' for raw in symbol['shape'])
+            if not pins:
+                raise ValueError('no source pins')
+            return pins, 0
     footprint = package['dataStr']
     footprint = json.loads(footprint) if isinstance(footprint, str) else footprint
     pins = sum(raw.split('~', 1)[0] == 'P' for raw in symbol['shape'])
@@ -115,7 +121,7 @@ def source_counts(folder):
     return pins, pads
 
 
-def valid_library(path, symbol=False, expected=None, uuid=None):
+def valid_library(path, symbol=False, expected=None, uuid=None, *, has_footprint=True):
     """Check essential structure; native format acceptance needs --validate."""
     tree = loads(read_limited(path).decode('utf-8'))
 
@@ -135,7 +141,7 @@ def valid_library(path, symbol=False, expected=None, uuid=None):
         if uuid is not None and symbol_uuid(tree) != uuid:
             return False
         footprints = [p[2] for p in children(symbols[0], 'property') if p[1] == 'Footprint']
-        if footprints != [f'{path.stem}:{path.stem}']:
+        if footprints != [f'{path.stem}:{path.stem}' if has_footprint else '']:
             return False
         pins = list(descendants(tree, 'pin'))
         if expected is not None and len(pins) != expected:
@@ -186,18 +192,28 @@ def libraries_complete(folder, *, expected_uuid=None):
         else:
             symbols = list(folder.glob('*.kicad_sym'))
             footprints = list(folder.glob('*.pretty/*.kicad_mod'))
-            if any(not s.with_suffix('.pretty').is_dir() for s in symbols):
-                return False
             uuid = symbol_uuid(loads(read_limited(symbols[0]).decode('utf-8'))) if symbols else None
         if expected_uuid is not None and component_uuid(expected_uuid) != uuid:
             return False
         if uuid is not None:
             check_identity(folder, uuid)
         paired = {p.stem for p in symbols}
+        # A source with a footprint must never pass as a partial symbol-only
+        # export. Without source bytes, require an explicit empty association.
+        symbol_only = counts[1] == 0 if counts else bool(symbols and not footprints)
         return (
-            bool(symbols and footprints)
-            and paired == {p.stem for p in footprints}
-            and all(valid_library(p, True, counts[0] if counts else None, uuid) for p in symbols)
+            bool(symbols)
+            and (
+                not footprints
+                if symbol_only
+                else bool(footprints) and paired == {p.stem for p in footprints}
+            )
+            and all(
+                valid_library(
+                    p, True, counts[0] if counts else None, uuid, has_footprint=not symbol_only
+                )
+                for p in symbols
+            )
             and all(valid_library(p, False, counts[1] if counts else None) for p in footprints)
         )
     except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):

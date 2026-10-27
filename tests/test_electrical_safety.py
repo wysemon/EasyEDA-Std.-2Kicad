@@ -192,6 +192,7 @@ def test_invalid_or_unsupported_pad_cannot_disappear(response, field, value):
 
 
 @pytest.mark.parametrize('path', sorted(FIXTURES.glob('*.json')), ids=lambda p: p.stem)
-def test_all_real_single_unit_fixtures_remain_usable(path):
+def test_all_real_fixtures_remain_usable(path):
     c = convert_response(json.loads(path.read_bytes()))
-    assert c.pins and c.pads
+    assert c.pins
+    assert bool(c.pads) == bool(c.footprint)

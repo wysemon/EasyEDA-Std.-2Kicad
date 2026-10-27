@@ -115,7 +115,7 @@ against real samples: PL/PG/PT/A/C, VIA/HOLE/CIRCLE, custom polygon pads,
 slots, multilayer SMD, pin clock/inversion, subparts.
 Unsupported optional drawings warn with UUID and raw line and are skipped.
 Malformed P/PAD/VIA/HOLE records and supported copper geometry fail the whole
-component before publication. Empty pin/pad collections fail too. Duplicate
+component before publication. Empty pins, or empty pads in a supplied footprint, fail too. Duplicate
 pin numbers and unmatched physical pads remain allowed and are retained.
 Nonempty `subparts` is an explicit unsupported multi-unit error, even alongside
 top-level shapes; empty/missing subparts keeps single-unit behavior. There is
@@ -452,3 +452,15 @@ include each bad pad's raw record and reason before any libraries are published.
 The Eagle transistor's `SOLIDREGION` field 3 is a bare list of XY pairs, not
 an SVG path. This format is parsed as one closed polygon. The same checks for
 empty, malformed, compound and self-intersecting copper regions still apply.
+
+## Symbol-only sources
+
+`82015f7d9a6543b7b998917289a50b78` (Device_Buzzer) contains a symbol and
+a textual Origin Footprint name, but neither packageDetail nor head.puuid.
+Export only the symbol, with an empty Footprint property and no `.pretty`
+directory. Log `symbol only: no footprint in source`, retain that note in CREDITS,
+and count the item as succeeded with warning. Validation checks only the symbol.
+Completion checks accept this only with an empty association and no generated
+footprint; a cached source with footprint geometry still requires all pads.
+A nonempty puuid still requires the existing cached/fetched fallback; missing
+fallback data, malformed UUIDs and invalid supplied footprints remain errors.

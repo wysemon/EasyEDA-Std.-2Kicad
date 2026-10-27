@@ -81,6 +81,9 @@ add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO
 add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.pretty in Footprint Libraries
 ```
 
+Components with no footprint geometry or footprint UUID export a symbol only. The app
+prints a warning, leaves the Footprint field empty, and creates no `.pretty` folder.
+
 `raw.json` preserves the original API response. `CREDITS.txt` keeps the authors, source link, full description and any source license. A separate footprint lookup adds `package_raw.json`. `fetch_log.tsv` records each item's time and status.
 
 The MAX98357A example warns about duplicate pin numbers 1 and 2. These are in the source: speaker pins +/-- share numbers with header pins. All nine symbol pins and seven footprint pads are kept.

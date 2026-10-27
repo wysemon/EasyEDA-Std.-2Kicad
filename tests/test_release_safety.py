@@ -139,7 +139,10 @@ def test_all_real_fixtures_validate_without_modifying_generated_files(path, tmp_
     folder = tmp_path / 'libraries'
     converted = write_conversion(response, folder, validate=True, sources={'raw.json': raw})
     assert (folder / f'{converted.name}.kicad_sym').read_text(encoding='utf-8') == converted.symbol
-    assert (folder / f'{converted.name}.pretty' / f'{converted.name}.kicad_mod').read_text(
-        encoding='utf-8'
-    ) == converted.footprint
+    if converted.footprint:
+        assert (folder / f'{converted.name}.pretty' / f'{converted.name}.kicad_mod').read_text(
+            encoding='utf-8'
+        ) == converted.footprint
+    else:
+        assert not list(folder.glob('*.pretty'))
     assert (folder / 'raw.json').read_bytes() == raw

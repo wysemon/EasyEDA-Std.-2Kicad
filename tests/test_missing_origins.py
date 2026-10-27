@@ -84,6 +84,8 @@ def test_real_missing_symbol_origin_uses_canvas(uuid, caplog):
 @pytest.mark.parametrize('symbol', [True, False])
 def test_canvas_origin_matches_explicit_origin_without_changing_scale(fixture, symbol):
     response = json.loads(fixture.read_bytes())['result']
+    if not symbol and not response.get('packageDetail'):
+        return  # A verified symbol-only source has no footprint origin.
     data = response['dataStr'] if symbol else response['packageDetail']['dataStr']
     original = Coordinates(data, symbol=symbol)
     without_head_origin = copy.deepcopy(data)

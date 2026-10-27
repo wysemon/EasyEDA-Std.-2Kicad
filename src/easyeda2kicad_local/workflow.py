@@ -63,6 +63,8 @@ def resolve_package(data, folder, client=None, *, force=False):
     if result.get('packageDetail'):
         return result['packageDetail']
     puuid = document(result['dataStr'])['head'].get('puuid', '')
+    if not puuid:
+        return None  # A package name alone is not downloadable footprint geometry.
     if not UUID.fullmatch(puuid):
         raise ValueError('Missing packageDetail and valid head.puuid')
     cached = folder / 'package_raw.json'
@@ -93,17 +95,18 @@ def run_items(
     Keep one client for cross-item pacing and denial detection. Dry runs may
     read existing output, but all their writes belong to disposable directories.
     """
-    failures = succeeded = skipped = 0
+    failures = succeeded = skipped = warned = 0
     libraries = set()
 
     def remember(folder):
         for symbol in folder.glob('*.kicad_sym'):
             pretty = symbol.with_suffix('.pretty')
-            if pretty.is_dir():
-                libraries.add((symbol.resolve(), pretty.resolve()))
+            libraries.add((symbol.resolve(), pretty.resolve() if pretty.is_dir() else None))
 
     def summary(unprocessed=0):
         print(f'Summary: {succeeded} succeeded, {failures} failed, {skipped} skipped.')
+        if warned:
+            print(f'Succeeded with warning: {warned} (symbol only: no footprint in source).')
         print(f'Output: {root.resolve()}')
         if unprocessed:
             print(f'Not processed: {unprocessed} (run stopped).')
@@ -111,7 +114,8 @@ def run_items(
             print('Dry run: no output files were saved.')
         for symbol, pretty in sorted(libraries):
             print(f'add {symbol} in Symbol Libraries')
-            print(f'add {pretty} in Footprint Libraries')
+            if pretty:
+                print(f'add {pretty} in Footprint Libraries')
 
     def record_status(uuid, status):
         try:
@@ -196,6 +200,7 @@ def run_items(
                         len(converted.pads),
                     )
                     succeeded += 1
+                    warned += int(not converted.footprint)
                     continue
                 remember(folder)
                 log.info(
@@ -205,8 +210,16 @@ def run_items(
                     len(converted.pads),
                     folder,
                 )
-                record_status(uuid, 'converted' if cached_only else 'ok')
+                record_status(
+                    uuid,
+                    'succeeded-with-warning'
+                    if not converted.footprint
+                    else 'converted'
+                    if cached_only
+                    else 'ok',
+                )
                 succeeded += 1
+                warned += int(not converted.footprint)
             except StopRun as e:
                 log.error('%s', e, exc_info=verbose)
                 if not dry_run:

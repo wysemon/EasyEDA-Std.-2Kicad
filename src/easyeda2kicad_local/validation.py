@@ -24,9 +24,12 @@ def validate_libraries(folder: Path, name: str):
         symbol = work / f'{name}.kicad_sym'
         pretty = work / f'{name}.pretty'
         shutil.copy2(folder / symbol.name, symbol)
-        pretty.mkdir()
-        for footprint in (folder / pretty.name).glob('*.kicad_mod'):
-            shutil.copy2(footprint, pretty / footprint.name)
+        jobs = [('sym', symbol)]
+        if (folder / pretty.name).is_dir():
+            pretty.mkdir()
+            for footprint in (folder / pretty.name).glob('*.kicad_mod'):
+                shutil.copy2(footprint, pretty / footprint.name)
+            jobs.append(('fp', pretty))
         # Keep KiCad's settings/cache writes temporary as well as its upgrades.
         env = dict(os.environ)
         for key in ('XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME'):
@@ -34,7 +37,7 @@ def validate_libraries(folder: Path, name: str):
             location.mkdir()
             env[key] = str(location)
         env['KICAD_CONFIG_HOME'] = str(work / 'kicad-config')
-        for kind, path in [('sym', symbol), ('fp', pretty)]:
+        for kind, path in jobs:
             try:
                 result = subprocess.run(
                     [executable, kind, 'upgrade', '--force', str(path)],
