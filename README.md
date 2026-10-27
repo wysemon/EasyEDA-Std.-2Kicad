@@ -34,9 +34,11 @@ Use the **exact absolute paths printed at the end of the run**.
 
 1. Open **Preferences > Manage Symbol Libraries**. Add the `.kicad_sym` file.
 2. Open **Preferences > Manage Footprint Libraries**. Add the `.pretty` folder.
-3. Name both libraries after the generated file/folder stem, such as `MAX98357A_NO_HOLES`. In the Schematic Editor, press **A** and place the symbol.
+3. Name both libraries after the generated file/folder stem, such as `MAX98357A_NO_HOLES_7db93ef9`. In the Schematic Editor, press **A** and place the symbol.
 
-The symbol already has a `library:name` Footprint property.
+Library nicknames and generated filenames use `{safe_title}_{uuid8}` to distinguish components with the same title.
+The symbol already has a matching `library:name` Footprint property.
+Older cached outputs can be rebuilt with `convert`; use the new UUID-suffixed library nickname in KiCad.
 Only Reference and Value properties are visible. Attribution and source metadata stay stored but hidden.
 Symbol graphic text is capped at 75 mil (1.905 mm); smaller source text stays smaller.
 Footprint drawing text keeps its source sizes. Property and pin-label sizes stay at 1.27 mm.
@@ -52,9 +54,9 @@ output/
 └── MAX98357A_NO_HOLES_7db93ef9/
     ├── raw.json
     ├── CREDITS.txt
-    ├── MAX98357A_NO_HOLES.kicad_sym
-    └── MAX98357A_NO_HOLES.pretty/
-        └── MAX98357A_NO_HOLES.kicad_mod
+    ├── MAX98357A_NO_HOLES_7db93ef9.kicad_sym
+    └── MAX98357A_NO_HOLES_7db93ef9.pretty/
+        └── MAX98357A_NO_HOLES_7db93ef9.kicad_mod
 ```
 
 Sample stdout on Linux, with an example checkout location:
@@ -62,8 +64,8 @@ Sample stdout on Linux, with an example checkout location:
 ```text
 Summary: 1 succeeded, 0 failed, 0 skipped.
 Output: /home/me/EasyEDA-Std.-2Kicad/output
-add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES.kicad_sym in Symbol Libraries
-add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES.pretty in Footprint Libraries
+add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.kicad_sym in Symbol Libraries
+add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.pretty in Footprint Libraries
 ```
 
 This component also logs duplicate pin numbers 1 and 2. All nine symbol pins and seven footprint pads are kept.
@@ -116,7 +118,7 @@ These require pipx or uv and their tool directory on PATH.
 | Text or pins look off | Re-convert cached data with the latest version. Check the source and warnings before using the result. Include the raw record when reporting a bug. |
 | Duplicate pin warning | All pins are kept. In MAX98357A, speaker pins +/-- share numbers 1/2 with header pins. Check connectivity in KiCad. |
 | Setup needs refreshing | Changes to `pyproject.toml` trigger refresh automatically. Delete `.venv/.ee2kicad-ready` to force a refresh. |
-| Windows path too long | Keep the checkout path short. Generated names are ASCII, at most 60 characters, and avoid reserved device names. Console output and credits use UTF-8. |
+| Windows path too long | Keep the checkout path short. Sanitized titles are ASCII, at most 60 characters, and avoid reserved device names; library names append `_uuid8`. Console output and credits use UTF-8. |
 
 ## Be a polite client
 

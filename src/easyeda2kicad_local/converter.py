@@ -410,7 +410,7 @@ def convert_response(response, package=None):
     if not package:
         raise ValueError('missing footprint; fetch packageDetail or cache package_raw.json')
     fp = document(package['dataStr'])
-    name = safe_name(result.get('title') or result['uuid'])
+    name = safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
     sc, fc = Coordinates(data, True), Coordinates(fp)
     pins, pads, sg, fg = [], [], [], []
     for raw in fp.get('shape', []):

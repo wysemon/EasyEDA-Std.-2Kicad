@@ -223,3 +223,7 @@ Live smoke tests are explicitly excluded and disabled in CI.
 
 `client.EDITOR_VERSION` is the single API editor-version setting (currently
 `6.5.60`). The component request uses this constant for its version parameter.
+
+Library names are now `safe_name(title) + "_" + uuid[:8]`. This applies to
+symbol/footprint library filenames, internal names and the Footprint property.
+Component output folder names already followed this scheme and remain stable.
