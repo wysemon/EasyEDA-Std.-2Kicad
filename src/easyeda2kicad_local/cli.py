@@ -107,7 +107,6 @@ def fetch(
     delay: Annotated[float, typer.Option('--delay', min=1., help='At least 1 second between requests, plus 0–2s jitter.')] = 4.,
     dry_run: Annotated[bool, typer.Option('--dry-run')] = False,
     verbose: Annotated[bool, typer.Option('--verbose', '-v')] = False,
-    with_3d: Annotated[bool, typer.Option('--3d', help='Experimental STEP download; placement unverified.')] = False,
     validate: Annotated[bool, typer.Option('--validate', help='Run KiCad upgrades on temporary copies.')] = False,
 ):
     """Fetch, cache and convert components sequentially."""
@@ -129,7 +128,7 @@ def fetch(
     except ValueError as e:
         fail(f'{e}; paste a public EasyEDA Standard component link or its UUID.', verbose=verbose)
     raise typer.Exit(run_items(items, output, force=force, delay=delay, dry_run=dry_run,
-                               with_3d=with_3d, validate=validate, verbose=verbose))
+                               validate=validate, verbose=verbose))
 
 
 @app.command()

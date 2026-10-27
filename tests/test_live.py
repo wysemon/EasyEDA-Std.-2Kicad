@@ -8,7 +8,7 @@ from easyeda2kicad_local.workflow import read_response
 
 @pytest.mark.live
 def test_one_public_component_live():
-    # One component only: no search, footprint fallback or model download.
+    # One component only: no search or footprint fallback.
     uuid = '7db93ef938c54a728e02f6579db05977'
     with EasyEDAClient() as client:
         response = read_response(client.component(uuid), uuid)

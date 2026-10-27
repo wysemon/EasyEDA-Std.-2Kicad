@@ -38,8 +38,10 @@ class Pin:
     name_visible: bool = True
 
     def render(self):
+        # KiCad ignores hide inside pin-name effects; '~' is its blank-name marker.
+        name = self.name if self.name_visible else '~'
         return (f'(pin {self.electrical} {self.style} (at {f(self.x)} {f(self.y)} {self.angle}) '
-                f'(length {f(self.length)}) (name {q(self.name)} {effects(hidden=not self.name_visible)}) '
+                f'(length {f(self.length)}) (name {q(name)} {effects()}) '
                 f'(number {q(self.number)} {effects()}))')
 
 
@@ -185,6 +187,9 @@ def render_symbol(result, data, name, sc, sg, pins):
                   'Footprint': f'{name}:{name}', 'Datasheet': para.get('link') or '',
                   'Description': short_description(result.get('description') or ''), 'Author': owner(result),
                   'Source': source, 'EasyEDA UUID': result['uuid']}
+    hidden_names = [{'number': pin.number, 'name': pin.name} for pin in pins if not pin.name_visible]
+    if hidden_names:
+        properties['EasyEDA Hidden Pin Names'] = json.dumps(hidden_names, ensure_ascii=False)
     center, value_y = symbol_label_position(data, sc, sg, pins)
     # Property angles are degrees; graphic text above uses deci-degrees.
     positions = {'Reference': (center, value_y + 2.54), 'Value': (center, value_y)}

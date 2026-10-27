@@ -1,13 +1,14 @@
 # easyeda2kicad-local
 
-Converts public EasyEDA Standard component links to local KiCad 8/9 symbols and footprints, one link at a time, with no search or account.
+Paste a public **EasyEDA Standard** component link and get a KiCad 8/9 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
 
 ## Quick start
 
-Install **Python 3.11+** from [python.org](https://www.python.org/downloads/).
-On Windows, enable the PATH option. Then open a terminal.
+You need [Git](https://git-scm.com/downloads) and [Python 3.11 or newer](https://www.python.org/downloads/). On Windows, enable **Add Python to PATH** during installation.
 
-Windows CMD:
+Open a terminal and run these three commands.
+
+**Windows CMD:**
 
 ```bat
 git clone https://github.com/wysemon/EasyEDA-Std.-2Kicad.git
@@ -15,7 +16,7 @@ cd EasyEDA-Std.-2Kicad
 run https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
 ```
 
-Linux/macOS:
+**Linux or macOS:**
 
 ```sh
 git clone https://github.com/wysemon/EasyEDA-Std.-2Kicad.git
@@ -23,30 +24,38 @@ cd EasyEDA-Std.-2Kicad
 ./run.sh https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
 ```
 
-The first run creates `.venv` and installs the package. Later runs reuse it.
-The ready-marker stores a SHA-256 hash of `pyproject.toml`; dependency changes trigger reinstall automatically.
-Run `run` or `./run.sh` without arguments to paste links. Finish with an empty line.
-If `links.txt` exists, Enter accepts `Found links.txt, use it? [Y/n]`.
+The first run creates a local `.venv` and installs the app. Later runs reuse it. Dependencies refresh automatically when `pyproject.toml` changes.
+
+Your KiCad files appear in `output/`. The terminal prints their full paths and a short summary when it finishes.
+
+### Paste links interactively
+
+Run `run` on Windows or `./run.sh` on Linux/macOS without arguments. Paste one link at each prompt, then press Enter on an empty line to finish.
+
+If you already have a `links.txt` file, the app asks whether to use it. Press Enter for yes. The file accepts one link or UUID per line, with blank lines and `#` comments allowed.
 
 ## Import into KiCad
 
-Use the **exact absolute paths printed at the end of the run**.
+Use the **full paths printed at the end of the run**:
 
-1. Open **Preferences > Manage Symbol Libraries**. Add the `.kicad_sym` file.
-2. Open **Preferences > Manage Footprint Libraries**. Add the `.pretty` folder.
-3. Name both libraries after the generated file/folder stem, such as `MAX98357A_NO_HOLES_7db93ef9`. In the Schematic Editor, press **A** and place the symbol.
+1. Open **Preferences > Manage Symbol Libraries** and add the `.kicad_sym` file.
+2. Open **Preferences > Manage Footprint Libraries** and add the `.pretty` folder.
+3. Give both libraries the generated name, such as `MAX98357A_NO_HOLES_7db93ef9`.
+4. In the Schematic Editor, press **A**, find the symbol, and place it.
 
-Library nicknames and generated filenames use `{safe_title}_{uuid8}` to distinguish components with the same title.
-The symbol already has a matching `library:name` Footprint property.
-Older cached outputs can be rebuilt with `convert`; use the new UUID-suffixed library nickname in KiCad.
-Only Reference and Value properties are visible. Attribution and source metadata stay stored but hidden.
-Symbol graphic text is capped at 75 mil (1.905 mm); smaller source text stays smaller.
-Footprint drawing text keeps its source sizes. Property and pin-label sizes stay at 1.27 mm.
-Footprint Reference/Value use KiCad 8 `property` records.
+The symbol already points to the matching footprint. Library names include the first eight characters of the component UUID so components with the same title have different names.
 
-## Example
+Only Reference and Value are shown as properties. Source information, authors and other metadata remain stored but hidden. Symbol drawing text is capped at 75 mil (1.905 mm); smaller text stays smaller. Footprint drawing text keeps the source sizes. Pin labels and Reference/Value use 1.27 mm.
 
-Input: https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
+## What a run produces
+
+For this link:
+
+```text
+https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
+```
+
+The output folder looks like this:
 
 ```text
 output/
@@ -59,7 +68,7 @@ output/
         └── MAX98357A_NO_HOLES_7db93ef9.kicad_mod
 ```
 
-Sample stdout on Linux, with an example checkout location:
+The summary below uses an example Linux checkout location. Your printed paths will match your own folder.
 
 ```text
 Summary: 1 succeeded, 0 failed, 0 skipped.
@@ -68,92 +77,104 @@ add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO
 add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.pretty in Footprint Libraries
 ```
 
-This component also logs duplicate pin numbers 1 and 2. All nine symbol pins and seven footprint pads are kept.
+`raw.json` preserves the original API response. `CREDITS.txt` keeps the authors, source link, full description and any source license. A separate footprint lookup adds `package_raw.json`. `fetch_log.tsv` records each item's time and status.
 
-### More commands
+The MAX98357A example warns about duplicate pin numbers 1 and 2. These are in the source: speaker pins +/-- share numbers with header pins. All nine symbol pins and seven footprint pads are kept.
 
-Re-convert the cache and optionally check it with KiCad:
+## Useful commands
+
+The examples below use Windows CMD. On Linux/macOS, replace `run` with `./run.sh`.
+
+| Task | Command |
+| --- | --- |
+| Read a list of links | `run --file links.txt` |
+| Choose an output folder | `run <link> --output "my libraries"` |
+| Rebuild a cached component offline | `run convert <uuid>` |
+| Check a cached conversion with KiCad | `run convert <uuid> --validate` |
+| Try a conversion without saving output | `run <link> --dry-run` |
+| Show detailed errors | `run <link> --verbose` |
+| Print the app version | `run --version` |
+
+You can use bare 32-hex UUIDs or component URLs from `easyeda.com` and `www.easyeda.com`. Trailing slashes, query strings and fragments are accepted. Several links or UUIDs may be passed on the same command line.
+
+**Quote links containing `&`, and quote paths containing spaces.** For example:
 
 ```bat
-run convert 7db93ef938c54a728e02f6579db05977 --validate
+run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
 ```
 
-On Linux/macOS, use `./run.sh` instead of `run`. `--validate` runs KiCad upgrades
-on temporary copies, then reports PASS/FAIL. Originals stay unchanged.
-If `kicad-cli` is missing, it prints one skip note. Validation is a parser check, not a design-rule check.
+### Caching and validation
 
-Several links or bare 32-hex UUIDs may be queued. They are processed sequentially.
-`run --file links.txt` reads one link/UUID per line; blank lines and `#` comments are ignored.
-Both `easyeda.com` and `www.easyeda.com` links work, including trailing slashes, queries and fragments.
-Quote URLs containing `&` and paths containing spaces. For example:
-`run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"`.
+A component is skipped when its symbol and footprint files already exist. If only raw data is cached, the app reports `re-converting from cache` and rebuilds without downloading again.
 
-Cached items are skipped only when both symbol and footprint files exist.
-If only raw data is cached, the app reports `re-converting from cache` and rebuilds offline. `--force` fetches again and overwrites generated outputs.
-`convert` uses cached data without making network requests. Use it after updating the converter.
-`--dry-run` converts in a temporary directory without saving output or log changes.
-Cached dry runs never request data, even with `--force`. Uncached fetch dry runs may request data.
-`--verbose` shows diagnostics and tracebacks.
+Use `convert` after updating the app to rebuild existing output offline. For older output, add the newly generated UUID-suffixed libraries in KiCad. `--force` downloads fresh component data and overwrites generated output.
 
-The launchers install from the checkout, but preserve the original working directory in `EE2KICAD_CWD`.
-Relative `--file` and `--output` paths, default `output/`, and interactive `links.txt` are resolved there.
-Installed console commands use the current directory unless that variable is set. `--output` chooses another location.
-Windows CMD restores its original console code page when the launcher exits.
-`raw.json` preserves the API response bytes. A separate footprint lookup adds `package_raw.json`.
-`CREDITS.txt` records both authors and source details. `fetch_log.tsv` appends UTC timestamps and statuses.
+`--validate` runs KiCad's upgrade commands on temporary copies and reports PASS/FAIL. It leaves your originals untouched. If `kicad-cli` is not on PATH, validation is skipped with one note. This checks that KiCad can read the libraries; it does not check the design's electrical or manufacturing rules.
 
-After `pip install -e .`, `ee2kicad <link>` works without a subcommand.
-Both `ee2kicad` and `easyeda2kicad-local` also accept `fetch ...`, `convert ...`, or no arguments for prompts.
-Optional global installs: `pipx install .` or `uv tool install .`, from this checkout.
-These require pipx or uv and their tool directory on PATH.
+`--dry-run` uses a temporary directory and does not save output or change the log. Cached dry runs make no requests, even with `--force`. An uncached dry run may fetch component data.
+
+### Files are relative to where you run the command
+
+The launchers install from the checkout, but `--file`, `--output`, default `output/`, and interactive `links.txt` use the directory you started in. Calling the launcher by its full path from another folder works too.
+
+The launchers pass this location through `EE2KICAD_CWD`. Installed console commands use the current directory unless that variable is set. Windows CMD restores its original console code page on exit.
 
 ## Troubleshooting
 
-| Problem | What to do |
+| Problem | What to try |
 | --- | --- |
-| Python missing | Install Python 3.11+ from python.org. Enable PATH on Windows. On Debian/Ubuntu, venv creation may also need `python3-venv`. |
-| HTTP 403/429 | Stop and wait. Check that the component is public. Do not retry rapidly or bypass access restrictions. |
+| Python is missing | Install Python 3.11+ and enable PATH on Windows. On Debian/Ubuntu, you may also need `python3-venv`. |
+| HTTP 403 or 429 | Stop and wait. Check that the component is public. Do not retry rapidly or bypass access restrictions. |
 | No internet | Check the connection and proxy settings. Cached `convert` still works offline. |
-| Private component / `success:false` | Use a public Standard component link. The app does not log in or bypass permissions. |
-| Text or pins look off | Re-convert cached data with the latest version. Check the source and warnings before using the result. Include the raw record when reporting a bug. |
-| Duplicate pin warning | All pins are kept. In MAX98357A, speaker pins +/-- share numbers 1/2 with header pins. Check connectivity in KiCad. |
-| Setup needs refreshing | Changes to `pyproject.toml` trigger refresh automatically. Delete `.venv/.ee2kicad-ready` to force a refresh. |
-| Windows path too long | Keep the checkout path short. Sanitized titles are ASCII, at most 60 characters, and avoid reserved device names; library names append `_uuid8`. Console output and credits use UTF-8. |
+| Private component or `success:false` | Use a public EasyEDA Standard component link. The app does not log in or bypass permissions. |
+| Text or pins look wrong | Update the app and re-convert the cache. Check the source and warnings before using the result. Include the raw record when reporting a bug. |
+| Duplicate pin warning | All pins are kept. Check the source and connectivity in KiCad; the duplicate may be intentional. |
+| Dependencies need refreshing | Changes to `pyproject.toml` trigger this automatically. Delete `.venv/.ee2kicad-ready` to force a refresh. |
+| Windows path is too long | Keep the checkout and output paths short. Sanitized titles use at most 60 ASCII characters, followed by `_uuid8`. |
 
 ## Be a polite client
 
-Requests share one HTTP client and run sequentially. The default cooldown is
-**4 seconds plus 0–2 seconds of random jitter** between all requests, including retries and footprint lookups.
-This avoids rapid bursts against the public service. `--delay` changes the base cooldown, with a minimum of 1 second.
-Caching avoids repeat downloads.
+The app deliberately pauses between requests. The default is **4 seconds plus 0–2 seconds of random jitter**, including retries and footprint lookups. Requests use one client and run sequentially. Caching avoids repeat downloads.
 
-403/429/5xx responses honor `Retry-After`, capped at 300 seconds with a warning. Otherwise, retries wait 30 then 60 seconds,
-with at most three attempts. **Two consecutive 403/429 responses stop the entire run**, including during retries.
-Other item failures are logged and processing continues; any failure gives a nonzero exit status.
-TLS verification stays enabled. Redirects, logins, captchas and paywalls are not bypassed.
-The app contacts only easyeda.com, plus modules.easyeda.com when `--3d` is selected.
+`--delay` changes the base cooldown, with a minimum of 1 second. Keep the default unless you have a reason to change it.
 
-## Limitations
+403/429/5xx responses honor `Retry-After`, capped at 300 seconds with a warning. Otherwise, retries wait 30 then 60 seconds, with at most three attempts. **Two consecutive 403/429 responses stop the whole run**, including during retries. Other item failures are logged and processing continues; any failure gives a nonzero exit status.
 
-- `--3d` is experimental. The SX1308 fixture contains a real SVGNODE and its attributes are tested. STEP downloads are optional; automatic placement and relative-path attachment remain disabled pending a KiCad 3D viewer comparison. Place downloaded models manually. OBJ/WRL conversion is not implemented.
-- Unverified record types are listed in [API notes](docs/API_NOTES.md). Unsupported records warn and are skipped. Unknown electrical types become unspecified. Multi-unit symbols warn and use unit 1 only when recognized.
+TLS verification stays enabled. Redirects, logins, captchas and paywalls are not bypassed. The app contacts only easyeda.com.
+
+## Limits and source rights
+
+- Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported records warn and are skipped. Unknown electrical types become unspecified. Multi-unit symbols warn and use unit 1 only when recognized.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
-- Pad/text rotation signs and true oval-slot orientation need a real sample to verify. The fixtures do not establish these conventions; a source-to-KiCad comparison is still needed. See [API notes](docs/API_NOTES.md).
-- There is no manufacturability guarantee. Review geometry, drills, pin mapping and clearances before fabrication.
-- Public component data may have third-party restrictions. Attribution does not grant redistribution rights. Review the source and each generated CREDITS.txt.
+- Pad/text rotation signs and true oval-slot orientation still need a source-to-KiCad comparison.
+- Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.
+- Public component data may have third-party restrictions. Attribution does not grant redistribution rights. Review the source and each generated `CREDITS.txt`.
 
-### Development checks
+## Other installation options
+
+After `pip install -e .`, use `ee2kicad <link>` without a subcommand. Both `ee2kicad` and `easyeda2kicad-local` also accept `fetch ...`, `convert ...`, or no arguments for prompts.
+
+For a global command isolated from other projects, use `pipx install .` or `uv tool install .` from this checkout. These require pipx or uv and their tool directory on PATH.
+
+## Development checks
 
 On Linux/macOS, after setup:
 
 ```sh
 .venv/bin/python -m pip install -e '.[test]'
 .venv/bin/python -m pytest
+.venv/bin/python -m ruff check .
 ```
 
-On Windows, use `.venv\Scripts\python -m pip install -e ".[test]"`, then
-`.venv\Scripts\python -m pytest`.
-Tests are offline. KiCad integration checks skip when its CLI is unavailable.
+On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use double quotes around `".[test]"`.
+
+The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `ee2kicad --version` prints the installed version.
+
+### Optional live smoke test
+
+`pytest -m live` opts into fetching exactly one public component through the normal paced client, including its retry/stop rules. It makes no search or footprint fallback requests and writes no output files.
+
+The normal suite deselects it. CI never runs it; `CI` or `EE2KICAD_DISABLE_LIVE` also forces a skip even with `-m live`. Other tests continue to block HTTP requests.
 
 ## Credits and license
 
@@ -164,14 +185,3 @@ Related tools and format research:
 [JLC2KiCadLib](https://github.com/TousstNicolas/JLC2KiCadLib).
 Their source code was not incorporated. Component authors retain their rights;
 see each generated CREDITS.txt.
-
-`ee2kicad --version` prints the installed application version. Developers can
-run `.venv/bin/python -m ruff check .` (Windows: `.venv\Scripts\python -m ruff check .`).
-
-### Optional live smoke test
-
-`pytest -m live` opts into fetching exactly one public component through the
-normal paced client, including its retry/stop rules. It makes no search,
-footprint fallback, or model requests and writes no output files. The normal
-suite deselects it. CI never runs it; `CI` or `EE2KICAD_DISABLE_LIVE` also forces
-a skip even with `-m live`. The offline suite continues to block HTTP requests.

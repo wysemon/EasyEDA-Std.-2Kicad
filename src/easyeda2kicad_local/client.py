@@ -59,7 +59,7 @@ class EasyEDAClient:
 
     def request(self, url, *, params=None):
         target = urlsplit(url)
-        if target.scheme != 'https' or target.netloc not in ('easyeda.com', 'modules.easyeda.com'):
+        if target.scheme != 'https' or target.netloc != 'easyeda.com':
             raise FetchError('Refusing destination outside EasyEDA')
         for attempt in range(3):
             self.sleep(max(0., self.next_request - self.clock()))

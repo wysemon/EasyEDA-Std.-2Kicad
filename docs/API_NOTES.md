@@ -65,11 +65,6 @@ Unsupported paths or records warn with their raw line and are skipped.
 Subparts are unverified: warn and use unit 1 only when a recognizable shape
 container is supplied; do not guess unrecognized layouts.
 
-Neither original MAX98357A/TP4056 fixture has SVGNODE or uuid_3d. The SX1308
-sample below now verifies SVGNODE attribute parsing. Model-download routes
-remain experimental; model placement and rotation still require comparison
-in KiCad's 3D viewer. Do not invent placement from head origins.
-
 ## Implementation and validation plan
 
 1. Build a sequential httpx fetcher with pacing, bounded retries, cross-item
@@ -167,7 +162,7 @@ Two consecutive 403/429 responses still stop the entire run.
 
 A cached item is complete only with a `.kicad_sym` file and a
 `.pretty/*.kicad_mod` file. Incomplete libraries are rebuilt from raw cache
-without requests, including no footprint fallback or 3D download. Missing
+without requests, including no footprint fallback. Missing
 fallback cache is an offline error; explicit `--force` allows retrieval.
 Per-item exceptions are counted/logged and processing continues, except StopRun.
 
@@ -192,26 +187,15 @@ property is at most 80 characters including `...`; CREDITS retains full source
 Description, and raw.json is unchanged. Only Reference/Value remain visible.
 The pin-name subsection flag controls name visibility; number flags are ignored
 and numbers remain visible. SX1308 pin 2's name is hidden; author T labels stay.
+KiCad does not preserve `hide` inside individual pin-name effects. Hidden names
+therefore use KiCad's `~` blank-name marker. The original names remain in the
+parsed pins, raw data, and hidden `EasyEDA Hidden Pin Names` JSON property.
+A KiCad 9 save/SVG regression verifies that pin 2 remains blank, its number
+remains visible, and the author's own GND/Vin/OUT text remains intact.
 
-`437e88cd34c64c1697331fe341e4a10f` (SX1308_Regulator) is the first real
-SVGNODE sample. Its JSON `attrs` contain:
-
-| Attribute | Source value |
-| --- | --- |
-| uuid | 2838c4425c9145bcaa4116a1d762772f |
-| c_origin | 4048.5394,3035.8268 |
-| c_rotation | 0,270,270 |
-| z | 21.6535 |
-| c_width | 87.4014 |
-| c_height | 67.3227 |
-
-The parser preserves these numbers in EasyEDA's source frame. Offline tests
-exercise this exact record and the STEP download route with a mock. The existing
-experimental --3d code downloads a STEP but **does not implement placement**.
-No relative model attachment or transform is guessed. No KiCad 3D viewer
-comparison has been performed. Pad/text rotation sign and oval drill orientation
-also still need a real source-to-KiCad comparison; parsing model attrs does not
-establish those conventions.
+The SX1308 source includes SVGNODE metadata. This app exports only 2D
+symbols and footprints: SVGNODE records and other model metadata are ignored,
+without fetching or attaching models. Original raw responses are preserved.
 
 All generated libraries, CREDITS and raw/fallback cache files use same-directory
 temporary files followed by `os.replace()`. Interrupted writes leave the old
@@ -219,7 +203,7 @@ complete file (or no file), and normal failures remove temporary files. This is
 per-file atomic replacement, not a transaction across all output files.
 
 CI runs the offline suite on Ubuntu and Windows, on Python 3.11 and 3.12.
-Only dependency installation uses the network; component/model HTTP requests
+Only dependency installation uses the network; component HTTP requests
 are blocked by test fixtures. Native launcher tests run on their own platform.
 Live smoke tests are explicitly excluded and disabled in CI.
 
@@ -233,7 +217,7 @@ Component output folder names already followed this scheme and remain stable.
 ## Optional live smoke check
 
 `pytest -m live` selects one smoke test and one public component UUID, using
-EasyEDAClient's default pacing and bounded retries. No search, package fallback
-or 3D request is made. It checks the response and in-memory conversion. The
+EasyEDAClient's default pacing and bounded retries. No search or package
+fallback request is made. It checks the response and in-memory conversion. The
 normal pytest selection is `not live`; CI explicitly excludes live tests and
 the network fixture skips them whenever CI or EE2KICAD_DISABLE_LIVE is set.

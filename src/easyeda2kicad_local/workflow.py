@@ -8,7 +8,6 @@ from pathlib import Path
 from .client import UUID, EasyEDAClient, FetchError, StopRun
 from .converter import document, safe_name, write_conversion
 from .files import atomic_write
-from .models import parse_svgnode
 from .validation import validate_libraries
 
 log = logging.getLogger(__name__)
@@ -66,43 +65,13 @@ def resolve_package(data, folder, client=None, *, force=False):
     return response['result']
 
 
-def experimental_model(package, folder, name, client):
-    data = document(package['dataStr'])
-    uuid = data['head'].get('uuid_3d') or ''
-    for shape in data.get('shape', []):
-        if shape.startswith('SVGNODE~'):
-            try:
-                model = parse_svgnode(shape)
-                uuid = model.uuid
-                log.debug('Source model placement (unverified): %s', model)
-            except (ValueError, KeyError, TypeError, AttributeError):
-                log.warning('Unrecognized experimental SVGNODE: %s', shape)
-    if not uuid:
-        log.warning('No 3D model reference; continuing without a model')
-        return
-    if not UUID.fullmatch(uuid):
-        log.warning('Invalid or unsupported 3D model UUID; continuing without a model')
-        return
-    try:
-        raw = client.request(f'https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{uuid}')
-        if not raw.lstrip().startswith(b'ISO-10303-21;'):
-            raise FetchError('Model endpoint did not return a STEP file')
-        atomic_write(folder / f'{name}.step', raw)
-        log.warning('Experimental STEP downloaded, but not attached: placement/rotation requires a model-bearing sample. '
-                    'Add it manually in KiCad until transforms are verified.')
-    except StopRun:
-        raise
-    except FetchError as e:
-        log.warning('3D model download failed; continuing without it: %s', e)
-
-
 def libraries_complete(folder):
     return (any(p.is_file() for p in folder.glob('*.kicad_sym')) and
             any(p.is_file() for p in folder.glob('*.pretty/*.kicad_mod')))
 
 
 def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=False,
-              delay=4., with_3d=False, validate=False, verbose=False):
+              delay=4., validate=False, verbose=False):
     failures = succeeded = skipped = 0
     libraries = set()
 
@@ -166,8 +135,6 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                         log.info('Dry run %s: %d pins, %d pads', uuid, len(converted.pins), len(converted.pads))
                         if validate and not validate_libraries(target, converted.name):
                             raise ValueError('KiCad validation failed; rerun with --verbose for details')
-                        if with_3d:
-                            log.warning('Dry run: 3D downloads are not performed')
                         succeeded += 1
                     continue
                 folder.mkdir(parents=True, exist_ok=True)
@@ -178,11 +145,6 @@ def run_items(items, root: Path, *, cached_only=False, force=False, dry_run=Fals
                 remember(folder)
                 if validate and not validate_libraries(folder, converted.name):
                     raise ValueError('KiCad validation failed; check the libraries or rerun with --verbose')
-                if with_3d:
-                    if using_cache:
-                        log.warning('Cached conversion does not download models; use fetch --force --3d')
-                    else:
-                        experimental_model(package, folder, converted.name, client)
                 log.info('Converted %s: %d pins, %d pads -> %s', uuid, len(converted.pins), len(converted.pads), folder)
                 append_log(root, uuid, 'converted' if cached_only else 'ok')
                 succeeded += 1

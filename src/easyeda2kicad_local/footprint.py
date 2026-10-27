@@ -125,7 +125,7 @@ def footprint_graphic(raw, coords):
         return [f'(pad "" thru_hole circle (at {coords.xy(t[1], t[2])}) (size {f(diameter)} {f(diameter)}) '
                 f'(drill {f(drill)}) (layers "*.Cu" "*.Mask"))']
     if kind == 'SVGNODE':
-        return []  # Explicit optional handling after credits generation.
+        return []  # Ignore non-2D metadata in untouched EasyEDA source responses.
     raise ValueError(f'unsupported footprint element {kind}')
 
 

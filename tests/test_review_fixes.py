@@ -40,7 +40,7 @@ def test_partial_libraries_reconvert_without_network(response, tmp_path, monkeyp
     monkeypatch.setattr(EasyEDAClient, 'request', forbidden)
     monkeypatch.setattr(EasyEDAClient, 'component', forbidden)
     caplog.set_level('INFO')
-    assert workflow.run_items([response['result']['uuid']], tmp_path, with_3d=True) == 0
+    assert workflow.run_items([response['result']['uuid']], tmp_path) == 0
     assert 're-converting from cache' in caplog.text
     assert (folder / 'raw.json').read_bytes() == raw
     assert list(folder.glob('*.kicad_sym')) and list(folder.glob('*.pretty/*.kicad_mod'))

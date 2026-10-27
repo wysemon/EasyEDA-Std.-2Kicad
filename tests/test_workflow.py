@@ -5,9 +5,9 @@ from conftest import FIXTURES
 from typer.testing import CliRunner
 
 from easyeda2kicad_local.cli import app
-from easyeda2kicad_local.client import EasyEDAClient, FetchError, StopRun
+from easyeda2kicad_local.client import EasyEDAClient, StopRun
 from easyeda2kicad_local.converter import safe_name
-from easyeda2kicad_local.workflow import experimental_model, run_items
+from easyeda2kicad_local.workflow import run_items
 
 
 def install_cache(tmp_path, response):
@@ -99,19 +99,3 @@ def test_cli_file_and_errors(response, tmp_path):
     assert runner.invoke(app, ['fetch', 'garbage']).exit_code != 0
     assert runner.invoke(app, ['fetch', uuid, '--delay', '-1']).exit_code != 0
     assert runner.invoke(app, ['convert', '0' * 32, '-o', str(tmp_path)]).exit_code != 0
-
-
-def test_no_model_and_failure_are_optional(response, tmp_path, monkeypatch, caplog):
-    package = response['result']['packageDetail']
-    client = EasyEDAClient()
-    experimental_model(package, tmp_path, 'test', client)
-    assert 'No 3D model reference' in caplog.text
-    package['dataStr']['head']['uuid_3d'] = 'a' * 32
-
-    def fail(*args, **kwargs):
-        raise FetchError('model unavailable')
-
-    monkeypatch.setattr(client, 'request', fail)
-    experimental_model(package, tmp_path, 'test', client)
-    assert 'continuing without it' in caplog.text
-    client.http.close()
