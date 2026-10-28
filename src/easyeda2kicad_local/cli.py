@@ -21,7 +21,7 @@ app = typer.Typer(
 
 def version_callback(value):
     if value:
-        typer.echo(f'easyeda2kicad-local {__version__}')
+        typer.echo(f'EasyEDA-Std.-2Kicad {__version__}')
         raise typer.Exit()
 
 
@@ -99,7 +99,7 @@ def main(args=None):
         if arguments[0] not in ('fetch', 'convert', '--help', '-h', '--version'):
             arguments.insert(0, 'fetch')
         program = Path(sys.argv[0]).stem
-        app(args=arguments, prog_name='ee2kicad' if program == '__main__' else program)
+        app(args=arguments, prog_name='euc2k' if program == '__main__' else program)
     except Exception as e:
         if verbose:
             logging.getLogger(__name__).exception('Error')
@@ -153,9 +153,7 @@ def fetch(
                 verbose=verbose,
             )
     if not values:
-        fail(
-            'Supply a URL/UUID or --file links.txt, or run ee2kicad with no arguments for prompts.'
-        )
+        fail('Supply a URL/UUID or --file links.txt, or run euc2k with no arguments for prompts.')
     items = {}
     invalid = False
     for value, source in values:

@@ -4,7 +4,7 @@ requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "easyeda2kicad-local"
+name = "EasyEDA-Std.-2Kicad"
 version = "1.1.0"
 description = "Local 2D EasyEDA Standard to KiCad symbol and footprint converter"
 readme = "README.md"
@@ -21,8 +21,7 @@ Documentation = "https://github.com/wysemon/EasyEDA-Std.-2Kicad#readme"
 test = ["pytest>=8,<10", "ruff>=0.11,<1"]
 
 [project.scripts]
-easyeda2kicad-local = "easyeda2kicad_local.cli:main"
-ee2kicad = "easyeda2kicad_local.cli:main"
+euc2k = "easyeda2kicad_local.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

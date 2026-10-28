@@ -170,7 +170,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 ## Other installation options
 
-After `pip install -e .`, use `ee2kicad <link>` without a subcommand. Both `ee2kicad` and `easyeda2kicad-local` also accept `fetch ...`, `convert ...`, or no arguments for prompts.
+After `pip install -e .`, use `euc2k <link>` without a subcommand. `euc2k` stands for EasyEDA User Contributed. The command also accepts `fetch ...`, `convert ...`, or no arguments for prompts.
 
 For a global command isolated from other projects, use `pipx install .` or `uv tool install .` from this checkout. These require pipx or uv and their tool directory on PATH.
 
@@ -187,7 +187,7 @@ On Linux/macOS, after setup:
 
 On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use double quotes around `".[test]"`.
 
-The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `ee2kicad --version` prints the installed version.
+The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `euc2k --version` prints the installed version.
 
 Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 27 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](docs/API_NOTES.md) for remaining geometry limits.
 
