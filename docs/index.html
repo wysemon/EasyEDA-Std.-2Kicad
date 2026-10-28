@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fbfbfd">
+  <meta name="description" content="Turn a public EasyEDA Standard component link into a KiCad 8, 9 or 10 symbol and footprint. Open source, 2D, and local to your computer.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="euc2k.py — An EasyEDA link. A KiCad library.">
+  <meta property="og:description" content="A small, open-source bridge for user-contributed components. Paste a public EasyEDA Standard link. Get a KiCad symbol and footprint.">
+  <meta property="og:url" content="https://wysemon.github.io/euc2k.py/">
+  <meta property="og:image" content="https://wysemon.github.io/euc2k.py/social-card.jpg?v=2">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="euc2k.py. An EasyEDA link. A KiCad library. A transfer mark joins two rounded brackets with a rightward arrow.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="euc2k.py — An EasyEDA link. A KiCad library.">
+  <meta name="twitter:description" content="Convert public EasyEDA Standard components to local KiCad symbols and footprints.">
+  <meta name="twitter:image" content="https://wysemon.github.io/euc2k.py/social-card.jpg?v=2">
+  <link rel="canonical" href="https://wysemon.github.io/euc2k.py/">
+  <link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script>try{var t=localStorage.getItem('euc2k-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+  <script src="./script.js" defer></script>
+  <title>euc2k.py — An EasyEDA link. A KiCad library.</title>
+</head>
+<body>
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4.3 1.3-4.3-2.2-6-2.7m12 5v-3.9c0-1.1.1-1.7-.5-2.3 3.1-.4 6.4-1.5 6.4-6.8a5.3 5.3 0 0 0-1.4-3.7c.1-.4.6-1.8-.1-3.6 0 0-1.2-.4-3.8 1.4a13 13 0 0 0-6.8 0C6.2.6 5 1 5 1c-.7 1.8-.2 3.2-.1 3.6a5.3 5.3 0 0 0-1.4 3.7c0 5.3 3.3 6.4 6.4 6.8-.5.4-.7 1.1-.7 2.1v4.1" transform="translate(1 1) scale(.9)"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h2M16 4h2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-2"/><path d="M7 12h10m-4-4 4 4-4 4"/></g></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4m-6 7-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m-2 9a4 4 0 0 0 6 0l5-5a4 4 0 0 0-6-6l-1 1" transform="translate(1 2) scale(.9)"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.8 13a9 9 0 0 1-9.8-9.8A9 9 0 1 0 20.8 13Z"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="wordmark" href="#" aria-label="euc2k.py home"><svg class="icon logo-icon"><use href="#i-chip"/></svg><span>euc2k<span class="muted">.py</span></span></a>
+      <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#quick-start">Quick start</a><a href="#compare">Compare</a><a href="#faq">FAQ</a></nav>
+      <div class="header-actions">
+        <button class="theme-toggle icon-button" type="button" aria-label="Switch to dark theme" title="Switch theme" hidden><svg class="icon sun"><use href="#i-sun"/></svg><svg class="icon moon"><use href="#i-moon"/></svg></button>
+        <a class="repo-link" href="https://github.com/wysemon/euc2k.py"><svg class="icon"><use href="#i-github"/></svg><span>GitHub</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container">
+        <a class="release-label" href="https://github.com/wysemon/euc2k.py/releases"><span class="status-dot"></span>v1.3.0 <svg class="icon small"><use href="#i-arrow"/></svg></a>
+        <h1 id="hero-title">An EasyEDA link.<br>A KiCad library<span class="accent">.</span></h1>
+        <p class="lead">Paste a public component link. Get a symbol and footprint, converted on your own computer.</p>
+        <div class="hero-buttons"><a class="button primary" href="#quick-start">Get started</a><a class="button secondary" href="https://github.com/wysemon/euc2k.py">View on GitHub</a></div>
+        <p class="hero-note">No account. No search. No cloud conversion.</p>
+
+        <div class="demo-window" role="group" aria-label="Illustrative conversion demo">
+          <div class="demo-toolbar"><div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="demo-title">euc2k.py — example run</span></div>
+          <div class="terminal">
+            <div class="terminal-command" aria-hidden="true"><span class="command-prompt">❯</span> <span id="typed-command">run https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</span><span class="terminal-cursor"></span></div>
+            <p class="sr-only">Example: run followed by a public EasyEDA component link.</p>
+            <div id="terminal-output" class="terminal-output" aria-hidden="true">
+              <div class="output-line"><span class="term-check">✓</span>Public component fetched <span class="term-dim">easyeda.com</span></div>
+              <div class="output-line"><span class="term-check">✓</span>Symbol + footprint converted</div>
+              <div class="output-line"><span class="term-check">✓</span>Author credits preserved <span class="term-dim">CREDITS.txt</span></div>
+              <div class="output-line output-paths"><span class="term-dim">Add in KiCad</span><br><span class="path-prefix">↳</span>output/component.kicad_sym<br><span class="path-prefix">↳</span>output/component.pretty/</div>
+              <div class="output-line terminal-done">Ready for your next board<span class="term-check">.</span></div>
+            </div>
+            <p class="sr-only">The example fetches the component, converts the symbol and footprint, preserves credits, and prints two library paths to add in KiCad. Actual file names depend on the component.</p>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><strong>884</strong><span>automated tests</span></div>
+          <div class="stat"><strong>KiCad 8–10</strong><span>checked versions</span></div>
+          <div class="stat"><strong>2 platforms</strong><span>CI on Windows &amp; Linux</span></div>
+          <div class="stat"><strong>MIT</strong><span>licensed</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="section container" aria-labelledby="how-title">
+      <div class="section-heading reveal"><h2 id="how-title">For the part with a link.<br>And no LCSC number.</h2><p class="lead">Some of the most useful EasyEDA components are contributed by users. When there’s no LCSC part number, euc2k starts with what you have: the component link.</p></div>
+      <ol class="steps reveal">
+        <li><span class="step-number">01</span><h3>Paste a link</h3><p>A public EasyEDA Standard component URL or its 32-character UUID. No export needed.</p></li>
+        <li><span class="step-number">02</span><h3>Fetch politely</h3><p>One public JSON request at a time. A 4 s cooldown + 0–2 s jitter. Stops after two consecutive 403/429 responses.</p></li>
+        <li><span class="step-number">03</span><h3>Convert locally</h3><p>Pins, pads, arcs, polygons, slots, multi-unit symbols and layers. Checked with KiCad’s CLI when available.</p></li>
+        <li><span class="step-number">04</span><h3>Add to KiCad</h3><p>Get the two library paths, plus a <code>CREDITS.txt</code> preserving authors and license text. Your files stay local.</p></li>
+      </ol>
+    </section>
+
+    <section id="quick-start" class="section surface-section" aria-labelledby="start-title">
+      <div class="narrow">
+        <div class="section-heading reveal"><h2 id="start-title">Three commands.<br>Then back to your board.</h2><p class="lead">You’ll need <a href="https://www.python.org/downloads/">Python 3.11+</a> and <a href="https://git-scm.com/downloads">Git</a>. The first run creates a local virtual environment automatically.</p></div>
+        <div class="reveal">
+          <div class="setup-top"><div class="os-tabs" aria-label="Operating system"><button id="tab-windows" type="button" data-os="windows" aria-controls="panel-windows" class="active">Windows</button><button id="tab-unix" type="button" data-os="unix" aria-controls="panel-unix">Linux / macOS</button></div><span class="shell-label" id="shell-label">CMD</span></div>
+          <div id="panel-windows" class="os-panel" aria-labelledby="tab-windows"><div class="code-top"><span>Clone &amp; convert</span><button class="copy-button text-copy" data-copy="windows-code" type="button" aria-label="Copy Windows commands" hidden><svg class="icon small"><use href="#i-copy"/></svg><span>Copy</span></button></div><pre tabindex="0" role="region" aria-label="Windows quick-start commands"><code id="windows-code">git clone https://github.com/wysemon/euc2k.py
+cd euc2k.py
+run https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
+          <div id="panel-unix" class="os-panel" aria-labelledby="tab-unix"><div class="code-top"><span>Clone &amp; convert</span><button class="copy-button text-copy" data-copy="unix-code" type="button" aria-label="Copy Linux and macOS commands" hidden><svg class="icon small"><use href="#i-copy"/></svg><span>Copy</span></button></div><pre tabindex="0" role="region" aria-label="Linux and macOS quick-start commands"><code id="unix-code">git clone https://github.com/wysemon/euc2k.py
+cd euc2k.py
+./run.sh https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
+          <p class="setup-note">Replace the example link with yours. After installation, you can also use <code>euc2k &lt;link&gt;</code> in the installed environment. On Windows, enable “Add Python to PATH” when installing Python.</p>
+          <p class="setup-note">In KiCad: <strong>Preferences → Manage Symbol Libraries</strong> → add the printed <code>.kicad_sym</code> path. Then <strong>Manage Footprint Libraries</strong> → add the <code>.pretty</code> folder.</p>
+          <a class="text-link" href="https://github.com/wysemon/euc2k.py#readme">Read the full README <svg class="icon"><use href="#i-arrow"/></svg></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="compare" class="section container" aria-labelledby="compare-title">
+      <div class="section-heading reveal"><h2 id="compare-title">Different starting points.<br>Room for all three.</h2><p class="lead">euc2k fills a small gap. An LCSC part number or an exported project may call for a different tool.</p></div>
+      <div class="comparison-scroll reveal" role="region" aria-label="Tool comparison, scroll horizontally on small screens" tabindex="0">
+        <table class="comparison"><caption class="sr-only">euc2k.py, uPesy easyeda2kicad.py and KiCad 10 built-in EasyEDA import compared</caption><thead><tr><th scope="col">Your starting point</th><th scope="col" class="our-tool"><span class="table-tool">euc2k.py</span><span class="tool-subtitle">The component-link route</span></th><th scope="col"><a class="table-tool" href="https://github.com/uPesy/easyeda2kicad.py">easyeda2kicad.py <svg class="icon small"><use href="#i-external"/></svg></a><span class="tool-subtitle">by uPesy</span></th><th scope="col"><a class="table-tool" href="https://docs.kicad.org/10.0/en/">KiCad built-in <svg class="icon small"><use href="#i-external"/></svg></a><span class="tool-subtitle">EasyEDA / JLCEDA import · v10</span></th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Identify a component</th><td class="our-tool">Public Standard link or UUID</td><td>LCSC part number<br><code>e.g. C2040</code></td><td>Exported file, library or project</td></tr>
+            <tr><th scope="row">Symbol &amp; footprint</th><td class="our-tool"><span class="check-mark">✓</span> KiCad 8 / 9 / 10</td><td><span class="check-mark">✓</span> KiCad 6+</td><td><span class="check-mark">✓</span> Import or migrate exported data</td></tr>
+            <tr><th scope="row">3D models</th><td class="our-tool">2D only, by design</td><td><span class="check-mark">✓</span> WRL + STEP models</td><td>3D references supported¹<br><span class="unverified">Model retrieval unverified</span></td></tr>
+            <tr><th scope="row">Export a file first?</th><td class="our-tool">No</td><td>No</td><td>Yes</td></tr>
+            <tr><th scope="row">KiCad required to convert?</th><td class="our-tool">No · optional CLI check</td><td>No · standalone Python tool</td><td>Yes · editor or KiCad CLI</td></tr>
+            <tr><th scope="row">Command-line use</th><td class="our-tool"><span class="check-mark">✓</span> Standalone</td><td><span class="check-mark">✓</span> Standalone</td><td><span class="check-mark">✓</span> <code>kicad-cli</code> library upgrade²</td></tr>
+            <tr><th scope="row">Software license</th><td class="our-tool"><a href="https://github.com/wysemon/euc2k.py/blob/main/LICENSE">MIT</a></td><td><a href="https://github.com/uPesy/easyeda2kicad.py/blob/master/LICENSE">AGPL-3.0</a></td><td><a href="https://www.kicad.org/about/licenses/">GPL-3.0-or-later³</a></td></tr>
+            <tr><th scope="row">Best at</th><td class="our-tool">User-contributed parts that only have a link</td><td>A mature LCSC workflow, with 3D models</td><td>Moving exported designs; no extra tool to install</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mobile-table-hint">Swipe the table to compare all three tools →</p>
+      <div class="comparison-notes"><p>Checked against official sources on <time datetime="2026-10-28">28 Oct 2026</time>. euc2k facts are supplied by its maintainer. Other tools were reviewed in documentation, not run here.</p><details><summary>Sources &amp; comparison notes <span>+</span></summary><div><p>uPesy: <a href="https://github.com/uPesy/easyeda2kicad.py#readme">official README</a> and <a href="https://github.com/uPesy/easyeda2kicad.py/blob/master/LICENSE">license</a>. The documented CLI uses LCSC IDs; direct component-link input is unverified.</p><p>KiCad 10: <a href="https://docs.kicad.org/10.0/en/eeschema/eeschema.html">Schematic Editor</a>, <a href="https://docs.kicad.org/10.0/en/pcbnew/pcbnew.html">PCB Editor</a>, and <a href="https://docs.kicad.org/10.0/en/cli/cli.html">CLI reference</a>. ¹ <a href="https://dev-docs.kicad.org/en/import-formats/easyeda/">Developer docs</a> describe 3D model references; automatic model-file retrieval across Standard/Pro is unverified. ² KiCad 10 documents <code>sym upgrade</code> and <code>fp upgrade</code> for exported EasyEDA libraries, without a running GUI. ³ Most KiCad source is GPL-3.0-or-later; some files have other licenses.</p><p>Software licenses do not replace the individual component authors’ licenses.</p></div></details></div>
+      <div class="routes reveal">
+        <div><svg class="icon"><use href="#i-link"/></svg><strong>Have a public component link?</strong><p>Start with euc2k.</p></div>
+        <div><svg class="icon"><use href="#i-chip"/></svg><strong>Have an LCSC part number?</strong><p>Try uPesy’s easyeda2kicad.</p></div>
+        <div><svg class="icon"><use href="#i-arrow"/></svg><strong>Have an exported design?</strong><p>Use KiCad’s native importer.</p></div>
+      </div>
+    </section>
+
+    <section id="built-with-ai" class="section surface-section" aria-labelledby="ai-title">
+      <div class="container">
+        <div class="reveal"><h2 id="ai-title">Built with AI.<br>Finished by a human.</h2>
+          <div class="ai-text"><p>Most of the code was written by AI assistants: Codex for code, Claude for planning, prompts and code review.</p><p>The human work was substantial: choosing what to build, capturing real EasyEDA data, and testing about 15 real components in KiCad. AI wrote code. A person checked what it actually did.</p></div>
+        </div>
+        <ol class="timeline reveal"><li><span class="timeline-index">01</span><strong>Idea</strong><span>A missing link</span></li><li><span class="timeline-index">02</span><strong>Prompt</strong><span>Define the job</span></li><li><span class="timeline-index">03</span><strong>First version</strong><span>AI-written code</span></li><li><span class="timeline-index">04</span><strong>Real-part testing</strong><span>Human, in KiCad</span></li><li><span class="timeline-index">05</span><strong>Fixes</strong><span>Report, repair, repeat</span></li><li><span class="timeline-index">06</span><strong>Release</strong><span>v1.3.0</span></li></ol>
+        <div class="human-details reveal"><span class="small-caption">WHAT HUMAN ATTENTION LOOKED LIKE</span><p><span class="detail-mark">↳</span>Catching a multi-unit symbol that exported only its first unit.</p><p><span class="detail-mark">↳</span>Reporting pads with unexpected plating flags.</p><p><span class="detail-mark">↳</span>Comparing screenshots with originals, then polishing the README and naming.</p></div>
+      </div>
+    </section>
+
+    <section id="limits" class="section container" aria-labelledby="limits-title">
+      <div class="section-heading reveal"><h2 id="limits-title">A small tool.<br>A clear scope.</h2><p class="lead">Safe file writes and clear errors help. You should still review every converted component before using it on a board.</p></div>
+      <div class="limits-list reveal">
+        <div class="limit-card"><strong>Unofficial, and dependent on EasyEDA.</strong><p>Not affiliated with EasyEDA, JLC or LCSC. The unofficial public endpoint can change or stop working.</p></div>
+        <div class="limit-card"><strong>2D components only.</strong><p>Symbols and footprints for KiCad 8/9/10. No 3D models, search or bulk download, on purpose.</p></div>
+        <div class="limit-card"><strong>Credits travel with the files.</strong><p>Contributed components keep their authors’ rights. Check each license before redistributing; the tool’s MIT license does not relicense a part.</p></div>
+      </div>
+    </section>
+
+    <section id="faq" class="section narrow" aria-labelledby="faq-title" style="padding-top:0">
+      <div class="section-heading reveal"><h2 id="faq-title">Good questions.</h2></div>
+      <div class="faq-list reveal">
+        <details><summary>Do I need an EasyEDA account?<span>+</span></summary><p>No. euc2k fetches a public EasyEDA Standard component by its link or UUID. Private components are outside its scope.</p></details>
+        <details><summary>Does “local” mean offline?<span>+</span></summary><p>No. A connection to easyeda.com is needed to fetch the public JSON. Conversion and file writes happen on your computer; there is no cloud conversion service.</p></details>
+        <details><summary>Does it support EasyEDA Pro or 3D models?<span>+</span></summary><p>No. It is for public EasyEDA Standard components and 2D KiCad symbols and footprints. For LCSC parts with 3D models, look at uPesy’s easyeda2kicad.py. For exported projects, try KiCad’s importer.</p></details>
+        <details><summary>Does KiCad need to be running?<span>+</span></summary><p>No. euc2k is a standalone command-line tool. If KiCad’s own CLI is available, it is used to check the output. Open KiCad afterward and add the two printed library paths.</p></details>
+        <details><summary>What happens if EasyEDA blocks a request?<span>+</span></summary><p>Requests run one at a time with a default 4-second cooldown plus 0–2 seconds of jitter. After two consecutive 403 or 429 responses, euc2k stops instead of continuing to request parts.</p></details>
+        <details><summary>Can I redistribute the converted components?<span>+</span></summary><p>Check the source component’s license first. The generated CREDITS.txt preserves author and license information. euc2k’s MIT license covers the tool, not other people’s component rights.</p></details>
+      </div>
+    </section>
+
+    <section class="closing container reveal" aria-label="Get started"><h2>A link is enough to begin.</h2><p class="lead">Your next component, in your own library.</p><a class="button primary" href="#quick-start">Get started</a></section>
+  </main>
+
+  <footer class="site-footer container">
+    <div class="footer-top"><a class="wordmark" href="#" aria-label="euc2k.py home"><svg class="icon logo-icon"><use href="#i-chip"/></svg><span>euc2k<span class="muted">.py</span></span></a><p>EasyEDA User Contributed To KiCad.</p><div class="footer-links"><a href="https://github.com/wysemon/euc2k.py/blob/main/LICENSE">MIT license</a><a href="https://github.com/wysemon/euc2k.py">Source on GitHub <svg class="icon small"><use href="#i-external"/></svg></a></div></div>
+    <div class="footer-bottom"><p>Inspired by <a href="https://github.com/uPesy/easyeda2kicad.py">easyeda2kicad.py</a>.</p><p>Unofficial. Not affiliated with EasyEDA, JLC or LCSC.</p><a href="#">Back to top ↑</a></div>
+  </footer>
+  <div id="copy-status" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
