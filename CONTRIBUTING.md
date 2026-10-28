@@ -40,7 +40,9 @@ CI checks formatting and lint on both Windows and Linux with Python 3.11/3.12.
 When changing package metadata, also check the wheel build:
 
 ```sh
-.venv/bin/python -m pip wheel --no-deps --wheel-dir dist .
+.venv/bin/python -m pip install build twine
+.venv/bin/python -m build
+.venv/bin/python -m twine check dist/*
 ```
 
 The normal suite uses stored fixtures and mocked HTTP. It blocks live component
@@ -96,8 +98,8 @@ failure recovery. Keep detailed source references in `docs/API_NOTES.md`.
   Graphic text, properties and footprint text have different angle conventions.
   Verify format changes against source evidence and native KiCad.
 - Keep duplicate pins and author-drawn labels. Malformed essential electrical
-  records fail the component; optional unsupported graphics warn. Multi-unit
-  data is rejected rather than partially exported.
+  records fail the component; optional unsupported graphics warn. Unsupported multi-unit
+  layouts are rejected rather than partially exported.
 - Publication preserves previous files on failure. Dry runs do not change the
   output tree. Cached conversion must not gain a hidden HTTP fallback.
 - Keep the **4 s + 0–2 s jitter** default, 1 s minimum, bounded retries and stop
@@ -114,3 +116,7 @@ the expected geometry. Explain which checks you ran and what remains unverified.
 The converter code uses the repository's MIT license. Component data keeps its
 source rights; the geometry excerpts have their own license and attribution in
 `tests/fixtures/geometry/`.
+
+## Releases
+
+See [Publishing a release](docs/RELEASING.md) for version checks, artifact validation, Trusted Publishing setup and recovery after a blocked upload.

@@ -9,8 +9,10 @@ Unofficial tool, not affiliated with or endorsed by EasyEDA, JLC or LCSC; contri
 Inspired by easyeda2kicad.py (https://github.com/uPesy/easyeda2kicad.py). Independent implementation, no code copied.
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="EasyEDA to KiCad conversion demo">
+  <img src="https://raw.githubusercontent.com/wysemon/euc2k.py/v1.4.0/docs/assets/demo.gif" alt="EasyEDA to KiCad conversion demo">
 </p>
+
+Current release: **[v1.4.0](https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0)** · [PyPI](https://pypi.org/project/euc2k/1.4.0/) · [Release notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/CHANGELOG.md)
 
 ## Quick start 🚀
 
@@ -118,7 +120,7 @@ run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
 
 ### Caching and validation
 
-Complete 2D libraries are skipped. New output has a hidden completion record; older output is checked against the cached pin and pad counts. Completion also requires matching full UUIDs in the cache, completion record and symbol, with matching symbol/footprint names. Identity conflicts fail without replacing existing files, even with `--force`. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
+Complete 2D libraries with a recognized `.euc2k-complete.json` record are skipped. Missing or unrecognized completion metadata causes rebuilding from cached source, with pin and pad counts checked. Completion also requires matching full UUIDs in the cache, completion record and symbol, with matching symbol/footprint names. Identity conflicts fail without replacing existing files, even with `--force`. If only raw data is cached, or output is incomplete, the app reports `re-converting from cache` and rebuilds without downloading again. Missing cached footprint data produces an offline error; it never triggers a hidden download.
 
 Use `convert` after updating the app to rebuild existing output offline. For older output, add the newly generated UUID-suffixed libraries in KiCad. `--force` downloads fresh component data and overwrites generated output.
 
@@ -130,9 +132,9 @@ Use `convert` after updating the app to rebuild existing output offline. For old
 
 New libraries are built in a temporary folder and checked before they replace anything. With `--validate`, KiCad must accept them too. A hidden completion record tracks the generated files. If writing or validation fails, the previous libraries stay available. After an interrupted publish, the next normal run restores the previous files. Use `convert` to rebuild again if those previous files are already complete. Dry runs leave your output untouched. Run only one converter process per output folder.
 
-Old converter-generated footprints with model references are rebuilt from their cache automatically, including older library names. Unassociated libraries are left alone with a manual-cleanup warning. No model files are deleted. You can remove unused STEP/WRL files yourself after checking that other projects do not use them. Raw JSON containing `SVGNODE` metadata is harmless and stays unchanged.
+Unrecognized marker files are left untouched. Matching cached source and symbol UUIDs are required to replace libraries without recognized ownership. Changed libraries are preserved in `.previous-<hash>` files before replacement; changed attribution is kept in `CREDITS.previous-<hash>.txt`. Files without ownership evidence are refused. Source model metadata in raw JSON is retained, but models are never downloaded or attached.
 
-Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uuid>`). Keep a copy of any hand-edited libraries. Changed older libraries and detected hand edits are also saved in a `.previous-<hash>` file before rebuilding. Changed attribution is kept in `CREDITS.previous-<hash>.txt`. Libraries created by other tools are never overwritten.
+Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uuid>`). Keep a copy of hand-edited libraries.
 
 ### Files are relative to where you run the command
 
@@ -166,7 +168,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 ## Limits and source rights
 
-- Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols use the verified `result.subparts` layout. Incomplete or unsupported unit layouts fail instead of exporting only part of a component.
+- Some record types and rotation conventions remain unverified. See [API notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols use the verified `result.subparts` layout. Incomplete or unsupported unit layouts fail instead of exporting only part of a component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
 - Filled SVG regions support one straight-edged contour. Compound fills, self-intersecting or touching copper contours, and custom pads whose anchor would add copper are rejected. Copper polygons are limited to 1,000 vertices to bound intersection checks. Separate stroked contours remain supported. Invalid copper widths, empty copper geometry and malformed or unsupported copper text fail the component before publication. Unknown through-hole plating flags warn and default to plated.
 - Real asymmetric pads and an oval USB-C slot now have source-to-native-KiCad checks. Some custom shapes, rear-side conventions and text placement still need real component comparisons.
@@ -176,9 +178,17 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 ## Other installation options
 
-After `pip install -e .`, use `euc2k <link>` without a subcommand. `euc2k` stands for EasyEDA User Contributed To KiCad. The command also accepts `fetch ...`, `convert ...`, or no arguments for prompts.
+Install the published release in a virtual environment. Create it with `python -m venv .venv`, then activate it with `source .venv/bin/activate` on Linux/macOS or `.venv\Scripts\activate` in Windows CMD:
 
-For a global command isolated from other projects, use `pipx install .` or `uv tool install .` from this checkout. These require pipx or uv and their tool directory on PATH.
+```sh
+python -m pip install "euc2k==1.4.0"
+euc2k --version
+euc2k <link>
+```
+
+`euc2k` stands for EasyEDA User Contributed To KiCad. The command also accepts `fetch ...`, `convert ...`, or no arguments for prompts. `python -m euc2k` provides the same CLI. Updating an existing installation uses `python -m pip install --upgrade "euc2k==1.4.0"`.
+
+For an isolated global command, use `pipx install euc2k==1.4.0` or `uv tool install euc2k==1.4.0`. These require pipx or uv and their tool directory on PATH. Contributors can still install from a checkout with `pip install -e .`.
 
 ## Development checks
 
@@ -195,7 +205,7 @@ On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use do
 
 The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `euc2k --version` prints the installed version.
 
-Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 37 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](docs/API_NOTES.md) for remaining geometry limits.
+Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 37 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/docs/API_NOTES.md) for remaining geometry limits.
 
 To run just the native checks after installing KiCad:
 
@@ -213,8 +223,8 @@ The normal suite deselects it. CI never runs it; `CI` or `EUC2K_DISABLE_LIVE` al
 
 ## Project documentation
 
-- [Contributing](CONTRIBUTING.md): setup, code map, formatting and test commands.
-- [API and format notes](docs/API_NOTES.md): verified conventions and remaining limits.
+- [Contributing](https://github.com/wysemon/euc2k.py/blob/v1.4.0/CONTRIBUTING.md): setup, code map, formatting and test commands.
+- [API and format notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/docs/API_NOTES.md): verified conventions and remaining limits.
 - [Report a problem](https://github.com/wysemon/euc2k.py/issues): include the component link, command and relevant warning.
 
 ## Credits and license
@@ -223,5 +233,5 @@ Independent implementation from the supplied API/format description and real
 fixtures, released under the repository's MIT license. No upstream code copied.
 Component authors retain their rights; see each generated CREDITS.txt.
 
-The [geometry test data](tests/fixtures/geometry/README.md) has a separate
+The [geometry test data](https://github.com/wysemon/euc2k.py/blob/v1.4.0/tests/fixtures/geometry/README.md) has a separate
 CC-BY-NC-SA 3.0 license and source attribution. The converter code stays MIT.

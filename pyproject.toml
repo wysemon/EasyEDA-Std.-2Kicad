@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "euc2k"
-version = "1.3.0"
+version = "1.4.0"
 description = "EasyEDA User Contributed To KiCad"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,7 +15,8 @@ dependencies = ["httpx>=0.27,<1", "typer>=0.12,<1", "rich>=13,<15"]
 [project.urls]
 Repository = "https://github.com/wysemon/euc2k.py"
 Issues = "https://github.com/wysemon/euc2k.py/issues"
-Documentation = "https://github.com/wysemon/euc2k.py#readme"
+Documentation = "https://wysemon.github.io/euc2k.py/"
+Changelog = "https://github.com/wysemon/euc2k.py/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "ruff>=0.11,<1"]

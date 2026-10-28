@@ -1,0 +1,12 @@
+include README.md CHANGELOG.md CONTRIBUTING.md LICENSE pyproject.toml
+include run.sh run.bat
+recursive-include src *.py
+recursive-include scripts *.py
+recursive-include tests *.py *.json *.md *.txt
+recursive-include docs *.md *.html *.css *.js *.svg *.jpg *.png *.gif
+include docs/.nojekyll
+recursive-include .github/workflows *.yml
+prune .venv
+prune build
+prune dist
+global-exclude __pycache__ *.py[cod]
