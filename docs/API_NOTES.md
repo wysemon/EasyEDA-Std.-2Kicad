@@ -419,7 +419,7 @@ that both kicad-cli and pcbnew report the requested major before testing.
 `EE2KICAD_REQUIRE_KICAD=1` and `EE2KICAD_REQUIRE_PCBNEW=1` prevent silently
 skipping the required tools. No EasyEDA network requests run in CI.
 
-All **27 native cases** pass separately on **8.0.9**, **9.0.9** and **10.0.7**
+All **37 native cases** pass separately on **8.0.9**, **9.0.9** and **10.0.7**
 in isolated Ubuntu 24.04 environments. Output stays at symbol version 20231120
 and footprint version 20240108, compatible with KiCad 8. The geometry helper
 handles the GetEffectivePolygon differences and KiCad 10's renamed FindPlugin

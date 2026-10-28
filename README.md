@@ -36,7 +36,7 @@ Your KiCad files appear in `output/`. The terminal prints their full paths and a
 
 Run `run` on Windows or `./run.sh` on Linux/macOS without arguments. Paste one link at each prompt, then press Enter on an empty line to finish.
 
-If you already have a `links.txt` file, the app asks whether to use it. Press Enter for yes. The file accepts one link or UUID per line, with blank lines and `#` comments allowed.
+If you already have a `links.txt` file, the app asks whether to use it. Press Enter for yes. The file accepts one link or UUID per line, with blank lines and `#` comments allowed. Invalid entries are reported individually, with line numbers for files; valid entries still run in order, with duplicate UUIDs processed once. Any invalid entry makes the command exit with code 1.
 
 ## Import into KiCad 🔌
 
@@ -162,7 +162,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 - Some record types and rotation conventions remain unverified. See [API notes](docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols use the verified `result.subparts` layout. Incomplete or unsupported unit layouts fail instead of exporting only part of a component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
-- Filled SVG regions support one straight-edged contour. Compound fills, self-intersecting or touching copper contours, and custom pads whose anchor would add copper are rejected. Copper polygons are limited to 1,000 vertices to bound intersection checks. Separate stroked contours remain supported. Invalid copper widths, unknown plating flags, empty copper geometry and malformed or unsupported copper text fail the component before publication.
+- Filled SVG regions support one straight-edged contour. Compound fills, self-intersecting or touching copper contours, and custom pads whose anchor would add copper are rejected. Copper polygons are limited to 1,000 vertices to bound intersection checks. Separate stroked contours remain supported. Invalid copper widths, empty copper geometry and malformed or unsupported copper text fail the component before publication. Unknown through-hole plating flags warn and default to plated.
 - Real asymmetric pads and an oval USB-C slot now have source-to-native-KiCad checks. Some custom shapes, rear-side conventions and text placement still need real component comparisons.
 - Courtyards cover pads, holes and non-text body outlines, with 0.25 mm clearance. They are a starting point, not a clearance certification.
 - Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.
@@ -189,7 +189,7 @@ On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use do
 
 The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `euc2k --version` prints the installed version.
 
-Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 27 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](docs/API_NOTES.md) for remaining geometry limits.
+Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 37 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](docs/API_NOTES.md) for remaining geometry limits.
 
 To run just the native checks after installing KiCad:
 
