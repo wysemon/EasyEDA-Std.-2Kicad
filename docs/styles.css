@@ -224,6 +224,15 @@ pre code{font-size:inherit}
 .reveal-pending.visible{opacity:1;transform:none}
 @keyframes blink{50%{opacity:0}}
 
+/* Real component example */
+.example-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.example-grid figure{display:flex;flex-direction:column;margin:0;min-width:0;padding:20px;border-radius:22px;background:var(--surface)}
+.example-grid .example-source{grid-column:1/-1}
+.example-grid a{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.example-grid img{display:block;max-width:100%;width:auto;height:auto;max-height:560px;object-fit:contain;border-radius:8px}
+.example-grid figcaption{margin-top:16px;color:var(--muted);font-size:14px}
+@media(max-width:640px){.example-grid{grid-template-columns:1fr}.example-grid figure{padding:14px}}
+
 /* Responsive */
 @media(max-width:900px){
   .section{padding:96px 0}
