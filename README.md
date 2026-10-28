@@ -14,11 +14,37 @@ Inspired by easyeda2kicad.py (https://github.com/uPesy/easyeda2kicad.py). Indepe
 
 Current release: **[v1.4.0](https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0)** · [PyPI](https://pypi.org/project/euc2k/1.4.0/) · [Release notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/CHANGELOG.md)
 
-## Quick start 🚀
+## Quick start with pip 📦
 
-You need [Git](https://git-scm.com/downloads) and [Python 3.11 or newer](https://www.python.org/downloads/). On Windows, enable **Add Python to PATH** during installation.
+You need [Python 3.11 or newer](https://www.python.org/downloads/). Install from [PyPI](https://pypi.org/project/euc2k/), then paste a component link. No Git or repository download is needed.
 
-Open a terminal and use the three commands for your system below.
+Create a virtual environment so the app stays separate from your other Python packages.
+
+**Windows CMD:**
+
+```bat
+py -3 -m venv .venv
+.venv\Scripts\activate
+python -m pip install euc2k
+euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
+```
+
+**Linux or macOS:**
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install euc2k
+euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
+```
+
+Replace the example link with yours. `euc2k --version` shows the installed version; `euc2k --help` lists the options. `python -m euc2k` provides the same CLI. In a new terminal, activate the same environment before using `euc2k` again.
+
+Your KiCad files appear in `output/` in the folder where you run the command. The terminal prints their full paths and a short summary when it finishes.
+
+### Run from a checkout
+
+Prefer to clone the repository? Install [Git](https://git-scm.com/downloads) and Python 3.11+, then use the launcher for your system. On Windows, enable **Add Python to PATH** during Python installation.
 
 **Windows CMD:**
 
@@ -38,11 +64,9 @@ cd euc2k.py
 
 The first run creates a local `.venv` and installs the app. Later runs reuse it. Dependencies refresh automatically when `pyproject.toml` changes.
 
-Your KiCad files appear in `output/`. The terminal prints their full paths and a short summary when it finishes.
-
 ### Paste links interactively
 
-Run `run` on Windows or `./run.sh` on Linux/macOS without arguments. Paste one link at each prompt, then press Enter on an empty line to finish.
+Run `euc2k` without arguments. Paste one link at each prompt, then press Enter on an empty line to finish. From a checkout, `run` on Windows or `./run.sh` on Linux/macOS works the same way.
 
 If you already have a `links.txt` file, the app asks whether to use it. Press Enter for yes. The file accepts one link or UUID per line, with blank lines and `#` comments allowed. Invalid entries are reported individually, with line numbers for files; valid entries still run in order, with duplicate UUIDs processed once. Any invalid entry makes the command exit with code 1.
 
@@ -98,24 +122,24 @@ The MAX98357A example warns about duplicate pin numbers 1 and 2. These are in th
 
 ## Useful commands
 
-The examples below use Windows CMD. On Linux/macOS, replace `run` with `./run.sh`.
+These commands work on Windows, Linux and macOS after pip installation. From a checkout, replace `euc2k` with `run` on Windows or `./run.sh` on Linux/macOS.
 
 | Task | Command |
 | --- | --- |
-| Read a list of links | `run --file links.txt` |
-| Choose an output folder | `run <link> --output "my libraries"` |
-| Rebuild a cached component offline | `run convert <uuid>` |
-| Check a cached conversion with KiCad | `run convert <uuid> --validate` |
-| Try a conversion without saving output | `run <link> --dry-run` |
-| Show detailed errors | `run <link> --verbose` |
-| Print the app version | `run --version` |
+| Read a list of links | `euc2k --file links.txt` |
+| Choose an output folder | `euc2k <link> --output "my libraries"` |
+| Rebuild a cached component offline | `euc2k convert <uuid>` |
+| Check a cached conversion with KiCad | `euc2k convert <uuid> --validate` |
+| Try a conversion without saving output | `euc2k <link> --dry-run` |
+| Show detailed errors | `euc2k <link> --verbose` |
+| Print the app version | `euc2k --version` |
 
 You can use bare 32-hex UUIDs or component URLs from `easyeda.com` and `www.easyeda.com`. Trailing slashes, query strings and fragments are accepted. Several links or UUIDs may be passed on the same command line.
 
 **Quote links containing `&`, and quote paths containing spaces.** For example:
 
 ```bat
-run "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
+euc2k "https://easyeda.com/component/7db93ef938c54a728e02f6579db05977?a=1&b=2"
 ```
 
 ### Caching and validation
@@ -134,7 +158,7 @@ New libraries are built in a temporary folder and checked before they replace an
 
 Unrecognized marker files are left untouched. Matching cached source and symbol UUIDs are required to replace libraries without recognized ownership. Changed libraries are preserved in `.previous-<hash>` files before replacement; changed attribution is kept in `CREDITS.previous-<hash>.txt`. Files without ownership evidence are refused. Source model metadata in raw JSON is retained, but models are never downloaded or attached.
 
-Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uuid>`). Keep a copy of hand-edited libraries.
+Rebuild explicitly with `euc2k convert <uuid>`. Keep a copy of hand-edited libraries.
 
 ### Files are relative to where you run the command
 
@@ -150,7 +174,7 @@ The launchers pass this location through `EUC2K_CWD`. Installed console commands
 | HTTP 403 or 429 | Stop and wait. Check that the component is public. Do not retry rapidly or bypass access restrictions. |
 | No internet | Check the connection and proxy settings. Cached `convert` still works offline. |
 | Private component or `success:false` | Use a public EasyEDA Standard component link. The app does not log in or bypass permissions. |
-| Symbol looks tiny or far from the origin | Update the app, run `run convert <uuid>` (or `./run.sh convert <uuid>`), then reload the library in KiCad. Older output may have used zero for a missing EasyEDA origin. |
+| Symbol looks tiny or far from the origin | Update the app, run `euc2k convert <uuid>`, then reload the library in KiCad. Older output may have used zero for a missing EasyEDA origin. |
 | Text or pins look wrong | Update the app and re-convert the cache. Check the source and warnings before using the result. Include the raw record when reporting a bug. |
 | Duplicate pin warning | All pins are kept. Check the source and connectivity in KiCad; the duplicate may be intentional. |
 | Dependencies need refreshing | Changes to `pyproject.toml` trigger this automatically. Delete `.venv/.euc2k-ready` to force a refresh. |
@@ -176,19 +200,18 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 - Review geometry, drills, pin mapping and clearances before fabrication. There is no manufacturability guarantee.
 - Public component data may have third-party restrictions. Attribution does not grant redistribution rights. Review the source and each generated `CREDITS.txt`.
 
-## Other installation options
+## Updates and other installation options
 
-Install the published release in a virtual environment. Create it with `python -m venv .venv`, then activate it with `source .venv/bin/activate` on Linux/macOS or `.venv\Scripts\activate` in Windows CMD:
+To update a pip installation, activate its virtual environment and run:
 
 ```sh
-python -m pip install "euc2k==1.4.0"
+python -m pip install --upgrade euc2k
 euc2k --version
-euc2k <link>
 ```
 
-`euc2k` stands for EasyEDA User Contributed To KiCad. The command also accepts `fetch ...`, `convert ...`, or no arguments for prompts. `python -m euc2k` provides the same CLI. Updating an existing installation uses `python -m pip install --upgrade "euc2k==1.4.0"`.
+To install this specific release, use `python -m pip install "euc2k==1.4.0"`.
 
-For an isolated global command, use `pipx install euc2k==1.4.0` or `uv tool install euc2k==1.4.0`. These require pipx or uv and their tool directory on PATH. Contributors can still install from a checkout with `pip install -e .`.
+For an isolated global command, use `pipx install euc2k` or `uv tool install euc2k`. These require pipx or uv and their tool directory on PATH. Contributors can still install from a checkout with `pip install -e .`.
 
 ## Development checks
 

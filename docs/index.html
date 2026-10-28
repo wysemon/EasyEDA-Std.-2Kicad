@@ -57,14 +57,15 @@
         <a class="release-label" href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0"><span class="status-dot"></span>v1.4.0 <svg class="icon small"><use href="#i-arrow"/></svg></a>
         <h1 id="hero-title">An EasyEDA link.<br>A KiCad library<span class="accent">.</span></h1>
         <p class="lead">Paste a public component link. Get a symbol and footprint, converted on your own computer.</p>
-        <div class="hero-buttons"><a class="button primary" href="#quick-start">Get started</a><a class="button secondary" href="https://github.com/wysemon/euc2k.py">View on GitHub</a></div>
+        <div class="hero-buttons"><a class="button primary" href="#quick-start">Install with pip</a><a class="button secondary" href="https://github.com/wysemon/euc2k.py">View on GitHub</a></div>
+        <p class="hero-note">Available on <a href="https://pypi.org/project/euc2k/">PyPI</a>: <code>python -m pip install euc2k</code></p>
         <p class="hero-note">No account. No search. No cloud conversion.</p>
 
         <div class="demo-window" role="group" aria-label="Illustrative conversion demo">
           <div class="demo-toolbar"><div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="demo-title">euc2k.py — example run</span></div>
           <div class="terminal">
-            <div class="terminal-command" aria-hidden="true"><span class="command-prompt">❯</span> <span id="typed-command">run https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</span><span class="terminal-cursor"></span></div>
-            <p class="sr-only">Example: run followed by a public EasyEDA component link.</p>
+            <div class="terminal-command" aria-hidden="true"><span class="command-prompt">❯</span> <span id="typed-command">euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</span><span class="terminal-cursor"></span></div>
+            <p class="sr-only">Example: euc2k followed by a public EasyEDA component link.</p>
             <div id="terminal-output" class="terminal-output" aria-hidden="true">
               <div class="output-line"><span class="term-check">✓</span>Public component fetched <span class="term-dim">easyeda.com</span></div>
               <div class="output-line"><span class="term-check">✓</span>Symbol + footprint converted</div>
@@ -97,18 +98,21 @@
 
     <section id="quick-start" class="section surface-section" aria-labelledby="start-title">
       <div class="narrow">
-        <div class="section-heading reveal"><h2 id="start-title">Three commands.<br>Then back to your board.</h2><p class="lead">You’ll need <a href="https://www.python.org/downloads/">Python 3.11+</a> and <a href="https://git-scm.com/downloads">Git</a>. The first run creates a local virtual environment automatically.</p></div>
+        <div class="section-heading reveal"><h2 id="start-title">Install with pip.<br>Paste a link.</h2><p class="lead">You’ll need <a href="https://www.python.org/downloads/">Python 3.11+</a>. Install from <a href="https://pypi.org/project/euc2k/">PyPI</a> in a virtual environment. No Git or repository download is needed.</p></div>
         <div class="reveal">
           <div class="setup-top"><div class="os-tabs" aria-label="Operating system"><button id="tab-windows" type="button" data-os="windows" aria-controls="panel-windows" class="active">Windows</button><button id="tab-unix" type="button" data-os="unix" aria-controls="panel-unix">Linux / macOS</button></div><span class="shell-label" id="shell-label">CMD</span></div>
-          <div id="panel-windows" class="os-panel" aria-labelledby="tab-windows"><div class="code-top"><span>Clone &amp; convert</span><button class="copy-button text-copy" data-copy="windows-code" type="button" aria-label="Copy Windows commands" hidden><svg class="icon small"><use href="#i-copy"/></svg><span>Copy</span></button></div><pre tabindex="0" role="region" aria-label="Windows quick-start commands"><code id="windows-code">git clone https://github.com/wysemon/euc2k.py
-cd euc2k.py
-run https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
-          <div id="panel-unix" class="os-panel" aria-labelledby="tab-unix"><div class="code-top"><span>Clone &amp; convert</span><button class="copy-button text-copy" data-copy="unix-code" type="button" aria-label="Copy Linux and macOS commands" hidden><svg class="icon small"><use href="#i-copy"/></svg><span>Copy</span></button></div><pre tabindex="0" role="region" aria-label="Linux and macOS quick-start commands"><code id="unix-code">git clone https://github.com/wysemon/euc2k.py
-cd euc2k.py
-./run.sh https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
-          <p class="setup-note">Prefer an installed command? In a virtual environment, run <code>python -m pip install "euc2k==1.4.0"</code>, then <code>euc2k &lt;link&gt;</code>. See <a href="https://pypi.org/project/euc2k/1.4.0/">euc2k 1.4.0 on PyPI</a> and the <a href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0">GitHub release</a>. For an isolated global install, use <code>pipx install euc2k==1.4.0</code> or <code>uv tool install euc2k==1.4.0</code>.</p>
-          <p class="setup-note">Replace the example link with yours. After installation, you can also use <code>euc2k &lt;link&gt;</code> in the installed environment. On Windows, enable “Add Python to PATH” when installing Python.</p>
-          <p class="setup-note">Optional validation: append <code>--validate</code>, for example <code>run &lt;link&gt; --validate</code> on Windows or <code>./run.sh &lt;link&gt; --validate</code> on Linux/macOS. Requires KiCad 8/9/10 with <code>kicad-cli</code> on PATH. Checks run on temporary copies; failure keeps existing libraries.</p>
+          <div id="panel-windows" class="os-panel" aria-labelledby="tab-windows"><div class="code-top"><span>Install &amp; convert</span><button class="copy-button text-copy" data-copy="windows-code" type="button" aria-label="Copy Windows commands" hidden><svg class="icon small"><use href="#i-copy"/></svg><span>Copy</span></button></div><pre tabindex="0" role="region" aria-label="Windows quick-start commands"><code id="windows-code">py -3 -m venv .venv
+.venv\Scripts\activate
+python -m pip install euc2k
+euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
+          <div id="panel-unix" class="os-panel" aria-labelledby="tab-unix"><div class="code-top"><span>Install &amp; convert</span><button class="copy-button text-copy" data-copy="unix-code" type="button" aria-label="Copy Linux and macOS commands" hidden><svg class="icon small"><use href="#i-copy"/></svg><span>Copy</span></button></div><pre tabindex="0" role="region" aria-label="Linux and macOS quick-start commands"><code id="unix-code">python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install euc2k
+euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
+          <p class="setup-note">Replace the example link with yours. In a new terminal, activate the same environment before using <code>euc2k</code> again. On Windows, enable “Add Python to PATH” when installing Python. On Debian/Ubuntu, you may also need <code>python3-venv</code>.</p>
+          <p class="setup-note">Prefer a checkout? Follow the <a href="https://github.com/wysemon/euc2k.py#run-from-a-checkout">clone instructions</a> and use <code>run &lt;link&gt;</code> on Windows or <code>./run.sh &lt;link&gt;</code> on Linux/macOS. For an isolated global install, use <code>pipx install euc2k</code> or <code>uv tool install euc2k</code>.</p>
+          <p class="setup-note">To update, run <code>python -m pip install --upgrade euc2k</code> in the activated environment. <code>euc2k --version</code> shows your version. See <a href="https://pypi.org/project/euc2k/1.4.0/">euc2k 1.4.0 on PyPI</a> and the <a href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0">release notes</a>.</p>
+          <p class="setup-note">Optional validation: use <code>euc2k &lt;link&gt; --validate</code>. Requires KiCad 8/9/10 with <code>kicad-cli</code> on PATH. Checks run on temporary copies; failure keeps existing libraries.</p>
           <p class="setup-note">In KiCad: <strong>Preferences → Manage Symbol Libraries</strong> → add the printed <code>.kicad_sym</code> path. Then <strong>Manage Footprint Libraries</strong> → add the <code>.pretty</code> folder.</p>
           <a class="text-link" href="https://github.com/wysemon/euc2k.py#readme">Read the full README <svg class="icon"><use href="#i-arrow"/></svg></a>
         </div>
