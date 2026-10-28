@@ -3,6 +3,7 @@ import sys
 
 import pytest
 from conftest import NEW, OLD
+from rich.text import Text
 from test_workflow import install_cache
 
 from easyeda2kicad_local import cli
@@ -89,7 +90,7 @@ def test_console_command_declared():
 )
 def test_command_help_uses_command_name_and_module_default(monkeypatch, capsys, program, expected):
     assert invoke_main(monkeypatch, ['--help'], program=program) == 0
-    assert f'Usage: {expected} ' in capsys.readouterr().out
+    assert f'Usage: {expected} ' in Text.from_ansi(capsys.readouterr().out).plain
 
 
 def test_installed_console_command(tmp_path):
