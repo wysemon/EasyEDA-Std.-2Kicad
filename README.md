@@ -6,7 +6,7 @@ Paste a public EasyEDA Standard component link and get a KiCad 8/9/10 symbol and
 
 Unofficial tool, not affiliated with or endorsed by EasyEDA, JLC or LCSC; contributed components keep their authors’ rights.
 
-Inspired by easyeda2kicad.py (https://github.com/uPesy/easyeda2kicad.py). Independent implementation, no code copied.
+Inspired by [easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py). Independent implementation, no code copied.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wysemon/euc2k.py/v1.4.0/docs/assets/demo.gif" alt="EasyEDA to KiCad conversion demo">
