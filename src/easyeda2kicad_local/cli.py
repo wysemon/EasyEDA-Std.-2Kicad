@@ -139,12 +139,12 @@ def fetch(
     setup_logging(verbose)
     output = caller_path(output)
     file = caller_path(file) if file is not None else None
-    values = list(inputs or [])
+    values = [(value, None) for value in inputs or []]
     if file:
         try:
             values.extend(
-                line.strip()
-                for line in file.read_text(encoding='utf-8-sig').splitlines()
+                (line.strip(), f'{file}:{number}')
+                for number, line in enumerate(file.read_text(encoding='utf-8-sig').splitlines(), 1)
                 if line.strip() and not line.lstrip().startswith('#')
             )
         except (OSError, UnicodeError) as e:
@@ -156,13 +156,26 @@ def fetch(
         fail(
             'Supply a URL/UUID or --file links.txt, or run ee2kicad with no arguments for prompts.'
         )
-    try:
-        items = list(dict.fromkeys(parse_uuid(value) for value in values))
-    except ValueError as e:
-        fail(f'{e}; paste a public EasyEDA Standard component link or its UUID.', verbose=verbose)
-    raise typer.Exit(
-        run_items(
-            items,
+    items = {}
+    invalid = False
+    for value, source in values:
+        try:
+            # Dict insertion order keeps the first occurrence of each UUID.
+            items[parse_uuid(value)] = None
+        except ValueError:
+            invalid = True
+            location = f'{source}: ' if source else ''
+            message = (
+                f'{location}Invalid input {value!r}; '
+                'paste a public EasyEDA Standard component link or its UUID.'
+            )
+            typer.echo('Error: ' + message.replace('\n', ' ').replace('\r', ' '), err=True)
+            if verbose:
+                logging.getLogger(__name__).exception('Details')
+    status = 0
+    if items:
+        status = run_items(
+            list(items),
             output,
             force=force,
             delay=delay,
@@ -170,7 +183,7 @@ def fetch(
             validate=validate,
             verbose=verbose,
         )
-    )
+    raise typer.Exit(1 if invalid else status)
 
 
 @app.command()
