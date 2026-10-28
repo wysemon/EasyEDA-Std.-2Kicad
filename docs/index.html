@@ -54,7 +54,7 @@
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
       <div class="container">
-        <a class="release-label" href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0"><span class="status-dot"></span>v1.4.0 <svg class="icon small"><use href="#i-arrow"/></svg></a>
+        <a class="release-label" href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.1"><span class="status-dot"></span>v1.4.1 <svg class="icon small"><use href="#i-arrow"/></svg></a>
         <h1 id="hero-title">An EasyEDA link.<br>A KiCad library<span class="accent">.</span></h1>
         <p class="lead">Paste a public component link. Get a symbol and footprint, converted on your own computer.</p>
         <div class="hero-buttons"><a class="button primary" href="#quick-start">Install with pip</a><a class="button secondary" href="https://github.com/wysemon/euc2k.py">View on GitHub</a></div>
@@ -111,7 +111,7 @@ python -m pip install euc2k
 euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre></div>
           <p class="setup-note">Replace the example link with yours. In a new terminal, activate the same environment before using <code>euc2k</code> again. On Windows, enable “Add Python to PATH” when installing Python. On Debian/Ubuntu, you may also need <code>python3-venv</code>.</p>
           <p class="setup-note">Prefer a checkout? Follow the <a href="https://github.com/wysemon/euc2k.py#run-from-a-checkout">clone instructions</a> and use <code>run &lt;link&gt;</code> on Windows or <code>./run.sh &lt;link&gt;</code> on Linux/macOS. For an isolated global install, use <code>pipx install euc2k</code> or <code>uv tool install euc2k</code>.</p>
-          <p class="setup-note">To update, run <code>python -m pip install --upgrade euc2k</code> in the activated environment. <code>euc2k --version</code> shows your version. See <a href="https://pypi.org/project/euc2k/1.4.0/">euc2k 1.4.0 on PyPI</a> and the <a href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0">release notes</a>.</p>
+          <p class="setup-note">To update, run <code>python -m pip install --upgrade euc2k</code> in the activated environment. <code>euc2k --version</code> shows your version. See <a href="https://pypi.org/project/euc2k/1.4.1/">euc2k 1.4.1 on PyPI</a> and the <a href="https://github.com/wysemon/euc2k.py/releases/tag/v1.4.1">release notes</a>.</p>
           <p class="setup-note">Optional validation: use <code>euc2k &lt;link&gt; --validate</code>. Requires KiCad 8/9/10 with <code>kicad-cli</code> on PATH. Checks run on temporary copies; failure keeps existing libraries.</p>
           <p class="setup-note">In KiCad: <strong>Preferences → Manage Symbol Libraries</strong> → add the printed <code>.kicad_sym</code> path. Then <strong>Manage Footprint Libraries</strong> → add the <code>.pretty</code> folder.</p>
           <a class="text-link" href="https://github.com/wysemon/euc2k.py#readme">Read the full README <svg class="icon"><use href="#i-arrow"/></svg></a>
@@ -172,7 +172,7 @@ euc2k https://easyeda.com/component/7db93ef938c54a728e02f6579db05977</code></pre
         <div class="reveal"><h2 id="ai-title">Built with AI.<br>Finished by a human.</h2>
           <div class="ai-text"><p>Most of the code was written by AI assistants: Codex for code, Claude for planning, prompts and code review.</p><p>The human work was substantial: choosing what to build, capturing real EasyEDA data, and testing about 15 real components in KiCad. AI wrote code. A person checked what it actually did.</p></div>
         </div>
-        <ol class="timeline reveal"><li><span class="timeline-index">01</span><strong>Idea</strong><span>A missing link</span></li><li><span class="timeline-index">02</span><strong>Prompt</strong><span>Define the job</span></li><li><span class="timeline-index">03</span><strong>First version</strong><span>AI-written code</span></li><li><span class="timeline-index">04</span><strong>Real-part testing</strong><span>Human, in KiCad</span></li><li><span class="timeline-index">05</span><strong>Fixes</strong><span>Report, repair, repeat</span></li><li><span class="timeline-index">06</span><strong>Release</strong><span>v1.4.0</span></li></ol>
+        <ol class="timeline reveal"><li><span class="timeline-index">01</span><strong>Idea</strong><span>A missing link</span></li><li><span class="timeline-index">02</span><strong>Prompt</strong><span>Define the job</span></li><li><span class="timeline-index">03</span><strong>First version</strong><span>AI-written code</span></li><li><span class="timeline-index">04</span><strong>Real-part testing</strong><span>Human, in KiCad</span></li><li><span class="timeline-index">05</span><strong>Fixes</strong><span>Report, repair, repeat</span></li><li><span class="timeline-index">06</span><strong>Release</strong><span>v1.4.1</span></li></ol>
         <div class="human-details reveal"><span class="small-caption">WHAT HUMAN ATTENTION LOOKED LIKE</span><p><span class="detail-mark">↳</span>Catching a multi-unit symbol that exported only its first unit.</p><p><span class="detail-mark">↳</span>Reporting pads with unexpected plating flags.</p><p><span class="detail-mark">↳</span>Comparing screenshots with originals, then polishing the README and naming.</p></div>
       </div>
     </section>

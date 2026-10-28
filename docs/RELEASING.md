@@ -28,6 +28,11 @@ Any required GitHub environment approval must also be completed by its reviewer.
 
 ## Prepare and validate
 
+PyPI displays the README stored in the uploaded package metadata. Later edits on
+`main` do not change a published release's description. Finalize and preview the
+README before tagging; corrections after publication require a new version.
+Never replace an existing release's artifacts or tag to update its README.
+
 1. Check the working tree and remote, existing Git tags/releases and production
    PyPI. Stop if the intended version already exists or ownership is uncertain.
 2. Prepare a release branch. Update `pyproject.toml`, `src/euc2k/__init__.py`,
@@ -55,7 +60,7 @@ Any required GitHub environment approval must also be completed by its reviewer.
    Python with `--version` and `--fixtures` pointing to this checkout's fixtures.
    Verify the source distribution can build/install independently too.
 6. Test the website on desktop/mobile, review the diff, and commit with a message
-   such as `Release v1.4.0`. Push the release branch without force-pushing. Wait
+   such as `Release v1.4.1`. Push the release branch without force-pushing. Wait
    for all seven CI jobs, including the KiCad 8/9/10 matrix.
 
 ## Publish and deploy

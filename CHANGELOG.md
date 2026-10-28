@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 — 2026-10-28
+
+- Publish the corrected README to PyPI, including the clickable inspiration credit and the pip-first Windows and Linux/macOS quick starts.
+- Update package/runtime versions, website release labels and version-specific documentation links together.
+- Keep converter behavior, CLI options, source preservation, cache safety and request pacing unchanged. Compatibility remains Python 3.11+ and KiCad 8/9/10; exports remain strictly 2D.
+
 ## 1.4.0 — 2026-10-28
 
 - Prepare the first production PyPI distribution under the package name `euc2k`, with `euc2k` as its sole console command and `python -m euc2k` as the module entry point.

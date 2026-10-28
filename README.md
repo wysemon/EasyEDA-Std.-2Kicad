@@ -9,10 +9,10 @@ Unofficial tool, not affiliated with or endorsed by EasyEDA, JLC or LCSC; contri
 Inspired by [easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py). Independent implementation, no code copied.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wysemon/euc2k.py/v1.4.0/docs/assets/demo.gif" alt="EasyEDA to KiCad conversion demo">
+  <img src="https://raw.githubusercontent.com/wysemon/euc2k.py/v1.4.1/docs/assets/demo.gif" alt="EasyEDA to KiCad conversion demo">
 </p>
 
-Current release: **[v1.4.0](https://github.com/wysemon/euc2k.py/releases/tag/v1.4.0)** · [PyPI](https://pypi.org/project/euc2k/1.4.0/) · [Release notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/CHANGELOG.md)
+Current release: **[v1.4.1](https://github.com/wysemon/euc2k.py/releases/tag/v1.4.1)** · [PyPI](https://pypi.org/project/euc2k/1.4.1/) · [Release notes](https://github.com/wysemon/euc2k.py/blob/v1.4.1/CHANGELOG.md)
 
 ## Quick start with pip 📦
 
@@ -192,7 +192,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 ## Limits and source rights
 
-- Some record types and rotation conventions remain unverified. See [API notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols use the verified `result.subparts` layout. Incomplete or unsupported unit layouts fail instead of exporting only part of a component.
+- Some record types and rotation conventions remain unverified. See [API notes](https://github.com/wysemon/euc2k.py/blob/v1.4.1/docs/API_NOTES.md). Unsupported decorative records warn and are skipped. Malformed pins, pads, holes, vias or supported copper records fail the component so electrical geometry cannot silently disappear. Unknown electrical types warn and become unspecified. Multi-unit symbols use the verified `result.subparts` layout. Incomplete or unsupported unit layouts fail instead of exporting only part of a component.
 - Circular SVG arcs become KiCad arcs. Elliptical arcs use sampled polylines. Pads support round, rectangular, oval and custom polygons, with through-hole or SMD layers.
 - Filled SVG regions support one straight-edged contour. Compound fills, self-intersecting or touching copper contours, and custom pads whose anchor would add copper are rejected. Copper polygons are limited to 1,000 vertices to bound intersection checks. Separate stroked contours remain supported. Invalid copper widths, empty copper geometry and malformed or unsupported copper text fail the component before publication. Unknown through-hole plating flags warn and default to plated.
 - Real asymmetric pads and an oval USB-C slot now have source-to-native-KiCad checks. Some custom shapes, rear-side conventions and text placement still need real component comparisons.
@@ -209,7 +209,7 @@ python -m pip install --upgrade euc2k
 euc2k --version
 ```
 
-To install this specific release, use `python -m pip install "euc2k==1.4.0"`.
+To install this specific release, use `python -m pip install "euc2k==1.4.1"`.
 
 For an isolated global command, use `pipx install euc2k` or `uv tool install euc2k`. These require pipx or uv and their tool directory on PATH. Contributors can still install from a checkout with `pip install -e .`.
 
@@ -228,7 +228,7 @@ On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`, and use do
 
 The normal suite is offline. KiCad integration checks skip when its CLI is unavailable. `euc2k --version` prints the installed version.
 
-Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 37 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/docs/API_NOTES.md) for remaining geometry limits.
+Files use one shared KiCad 8 format, verified with **KiCad 8.0.9, 9.0.9 and 10.0.7** in isolated Ubuntu 24.04 environments. Each passes 37 native checks covering imports, upgrades, rendering, essential properties, pad placement, drills and layers. CI keeps the Python 3.11/3.12 Windows/Linux matrix and tests all three KiCad majors from the KiCad team’s maintained stable PPAs. Each job verifies both CLI and Python binding versions before testing. Native KiCad on Windows/macOS and manual GUI inspection are not covered; see [API notes](https://github.com/wysemon/euc2k.py/blob/v1.4.1/docs/API_NOTES.md) for remaining geometry limits.
 
 To run just the native checks after installing KiCad:
 
@@ -246,8 +246,8 @@ The normal suite deselects it. CI never runs it; `CI` or `EUC2K_DISABLE_LIVE` al
 
 ## Project documentation
 
-- [Contributing](https://github.com/wysemon/euc2k.py/blob/v1.4.0/CONTRIBUTING.md): setup, code map, formatting and test commands.
-- [API and format notes](https://github.com/wysemon/euc2k.py/blob/v1.4.0/docs/API_NOTES.md): verified conventions and remaining limits.
+- [Contributing](https://github.com/wysemon/euc2k.py/blob/v1.4.1/CONTRIBUTING.md): setup, code map, formatting and test commands.
+- [API and format notes](https://github.com/wysemon/euc2k.py/blob/v1.4.1/docs/API_NOTES.md): verified conventions and remaining limits.
 - [Report a problem](https://github.com/wysemon/euc2k.py/issues): include the component link, command and relevant warning.
 
 ## Credits and license
@@ -256,5 +256,5 @@ Independent implementation from the supplied API/format description and real
 fixtures, released under the repository's MIT license. No upstream code copied.
 Component authors retain their rights; see each generated CREDITS.txt.
 
-The [geometry test data](https://github.com/wysemon/euc2k.py/blob/v1.4.0/tests/fixtures/geometry/README.md) has a separate
+The [geometry test data](https://github.com/wysemon/euc2k.py/blob/v1.4.1/tests/fixtures/geometry/README.md) has a separate
 CC-BY-NC-SA 3.0 license and source attribution. The converter code stays MIT.
