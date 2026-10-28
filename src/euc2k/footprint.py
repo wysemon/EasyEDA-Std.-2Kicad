@@ -280,7 +280,7 @@ def render_footprint(name, fp, fc, pads, fg):
     courtyard_graphic = f'(fp_rect (start {f(minx)} {f(miny)}) (end {f(maxx)} {f(maxy)}) {stroke(0.05)} (fill none) (layer "F.CrtYd"))'
     attrs = 'through_hole' if any(p.kind != 'smd' for p in pads) else 'smd'
     footprint = (
-        f'(footprint {q(name)} (version 20240108) (generator "easyeda2kicad-local") '
+        f'(footprint {q(name)} (version 20240108) (generator "euc2k") '
         f'(layer "F.Cu") (attr {attrs})\n'
         f'(property "Reference" "REF**" (at 0 {f(miny - 1)} 0) (layer "F.SilkS") {effects()})\n'
         f'(property "Value" {q(name)} (at 0 {f(maxy + 1)} 0) (layer "F.Fab") {effects(hidden=True)})\n'

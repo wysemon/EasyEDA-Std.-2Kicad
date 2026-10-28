@@ -8,9 +8,9 @@ from conftest import FIXTURES
 from test_symbol_layout import children, one, sexpr
 from test_workflow import install_cache, snapshot
 
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.footprint import layer
-from easyeda2kicad_local.workflow import libraries_complete, run_items
+from euc2k.converter import convert_response
+from euc2k.footprint import layer
+from euc2k.workflow import libraries_complete, run_items
 
 
 @pytest.mark.parametrize(

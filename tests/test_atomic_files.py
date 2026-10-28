@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from easyeda2kicad_local import files
-from easyeda2kicad_local.converter import write_conversion
-from easyeda2kicad_local.workflow import libraries_complete
+from euc2k import files
+from euc2k.converter import write_conversion
+from euc2k.workflow import libraries_complete
 
 
 @pytest.mark.parametrize(

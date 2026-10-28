@@ -11,7 +11,7 @@ jobs:
         python: ['3.11', '3.12']
     runs-on: ${{ matrix.os }}
     env:
-      EE2KICAD_DISABLE_LIVE: '1'
+      EUC2K_DISABLE_LIVE: '1'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -30,10 +30,10 @@ jobs:
       matrix:
         kicad: ['8', '9', '10']
     env:
-      EE2KICAD_DISABLE_LIVE: '1'
-      EE2KICAD_REQUIRE_KICAD: '1'
-      EE2KICAD_REQUIRE_PCBNEW: '1'
-      EE2KICAD_EXPECT_MAJOR: ${{ matrix.kicad }}
+      EUC2K_DISABLE_LIVE: '1'
+      EUC2K_REQUIRE_KICAD: '1'
+      EUC2K_REQUIRE_PCBNEW: '1'
+      EUC2K_EXPECT_MAJOR: ${{ matrix.kicad }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -61,7 +61,7 @@ jobs:
           }
           for kind, version in versions.items():
               print(f'KiCad {kind}: {version}', flush=True)
-              expected = int(os.environ['EE2KICAD_EXPECT_MAJOR'])
+              expected = int(os.environ['EUC2K_EXPECT_MAJOR'])
               if int(re.search(r'\d+', version)[0]) != expected:
                   raise SystemExit(f'Expected KiCad {expected} {kind}, found {version}')
           PY

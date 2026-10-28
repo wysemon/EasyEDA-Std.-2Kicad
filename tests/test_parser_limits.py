@@ -6,8 +6,8 @@ from conftest import NEW
 from test_client import Clock
 from test_workflow import install_cache, snapshot
 
-from easyeda2kicad_local import client, converter, files, geometry, sexpr, shared, workflow
-from easyeda2kicad_local.client import EasyEDAClient, FetchError
+from euc2k import client, converter, files, geometry, sexpr, shared, workflow
+from euc2k.client import EasyEDAClient, FetchError
 
 
 def test_bounded_read_preserves_bytes_and_rejects_oversize(tmp_path, monkeypatch):

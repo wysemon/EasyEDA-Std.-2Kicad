@@ -6,10 +6,10 @@ import json
 import pytest
 from test_workflow import install_cache, snapshot
 
-from easyeda2kicad_local.client import EasyEDAClient
-from easyeda2kicad_local.converter import convert_response, write_conversion
-from easyeda2kicad_local.publication import COMPLETE, digest, libraries_complete
-from easyeda2kicad_local.workflow import run_items
+from euc2k.client import EasyEDAClient
+from euc2k.converter import convert_response, write_conversion
+from euc2k.publication import COMPLETE, digest, libraries_complete
+from euc2k.workflow import run_items
 
 
 def colliding_component(response):
@@ -131,11 +131,11 @@ def test_uuid_case_is_not_an_identity_conflict(response, tmp_path):
     )
 
 
-def test_legacy_output_still_requires_matching_source_identity(response, tmp_path):
+def test_missing_marker_still_requires_matching_source_identity(response, tmp_path):
     folder, _ = install_cache(tmp_path, response)
     write_conversion(response, folder)
     (folder / COMPLETE).unlink()
-    assert libraries_complete(folder)
+    assert not libraries_complete(folder)
     raw = folder / 'raw.json'
     raw.write_text(
         raw.read_text().replace(

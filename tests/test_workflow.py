@@ -4,10 +4,10 @@ import json
 from conftest import FIXTURES
 from typer.testing import CliRunner
 
-from easyeda2kicad_local.cli import app
-from easyeda2kicad_local.client import EasyEDAClient, StopRun
-from easyeda2kicad_local.converter import safe_name
-from easyeda2kicad_local.workflow import run_items
+from euc2k.cli import app
+from euc2k.client import EasyEDAClient, StopRun
+from euc2k.converter import safe_name
+from euc2k.workflow import run_items
 
 
 def install_cache(tmp_path, response):
@@ -107,7 +107,7 @@ def test_cli_file_and_errors(response, tmp_path):
 def test_log_failure_does_not_mislabel_committed_conversion(
     response, tmp_path, monkeypatch, capsys, caplog
 ):
-    from easyeda2kicad_local import workflow
+    from euc2k import workflow
 
     folder, _ = install_cache(tmp_path, response)
 

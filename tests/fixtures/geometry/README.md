@@ -1,4 +1,4 @@
-# Pad geometry excerpts
+# euc2k.py: geometry test data
 
 `real_pad_examples.json` contains four unmodified records extracted from
 KiCad's EasyEDA Standard test board, **ESP32-PICO-D4 smart watch**.

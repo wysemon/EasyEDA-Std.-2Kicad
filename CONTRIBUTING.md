@@ -1,4 +1,4 @@
-# Contributing
+# Contributing to euc2k.py
 
 Keep changes focused and preserve the converter's small, local, 2D-only design.
 Start with the [README](README.md) for normal use and the
@@ -62,8 +62,8 @@ Python at `/usr/bin/python3` when the development venv cannot import them.
 These are test tools, not application dependencies.
 
 The native CI matrix installs KiCad 8/9/10 from the KiCad team's stable PPAs and
-verifies the CLI and binding versions. `EE2KICAD_REQUIRE_KICAD=1` and
-`EE2KICAD_REQUIRE_PCBNEW=1` make missing native tools fail the required checks.
+verifies the CLI and binding versions. `EUC2K_REQUIRE_KICAD=1` and
+`EUC2K_REQUIRE_PCBNEW=1` make missing native tools fail the required checks.
 
 `pytest -m live` is a separate, explicit opt-in smoke check. It uses the normal
 request pacing and stop rules. It is deselected by default and disabled in CI.

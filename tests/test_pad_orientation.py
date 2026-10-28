@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 from test_symbol_layout import one, sexpr
 
-from easyeda2kicad_local.footprint import footprint_graphic, parse_pad, render_footprint
-from easyeda2kicad_local.geometry import point_pairs
-from easyeda2kicad_local.shared import Coordinates
+from euc2k.footprint import footprint_graphic, parse_pad, render_footprint
+from euc2k.geometry import point_pairs
+from euc2k.shared import Coordinates
 
 ROOT = Path(__file__).parent
 EXAMPLES = json.loads((ROOT / 'fixtures/geometry/real_pad_examples.json').read_bytes())
@@ -106,7 +106,7 @@ def pcbnew_python():
             )
             if probe.returncode == 0:
                 return executable
-    if os.environ.get('EE2KICAD_REQUIRE_PCBNEW'):
+    if os.environ.get('EUC2K_REQUIRE_PCBNEW'):
         pytest.fail('Native pad integration requires Python pcbnew bindings')
     pytest.skip('Optional native geometry integration requires Python pcbnew bindings')
 
@@ -174,8 +174,8 @@ def test_native_easyeda_and_kicad_geometry_agree(case, raw, calibration, pcbnew_
     ],
 )
 def test_real_imported_polygons_match_source_in_native_kicad(uuid, pcbnew_python, tmp_path):
-    from easyeda2kicad_local.converter import write_conversion
-    from easyeda2kicad_local.sexpr import children, loads
+    from euc2k.converter import write_conversion
+    from euc2k.sexpr import children, loads
 
     response = json.loads((ROOT / 'fixtures' / f'{uuid}.json').read_bytes())
     converted = write_conversion(response, tmp_path / 'libraries')

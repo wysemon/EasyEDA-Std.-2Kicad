@@ -6,13 +6,13 @@ import pytest
 from conftest import FIXTURES
 from test_workflow import install_cache, snapshot
 
-from easyeda2kicad_local import geometry
-from easyeda2kicad_local.converter import convert_response, write_conversion
-from easyeda2kicad_local.footprint import parse_pad
-from easyeda2kicad_local.geometry import check_polygon
-from easyeda2kicad_local.sexpr import children, loads
-from easyeda2kicad_local.shared import Coordinates
-from easyeda2kicad_local.workflow import run_items
+from euc2k import geometry
+from euc2k.converter import convert_response, write_conversion
+from euc2k.footprint import parse_pad
+from euc2k.geometry import check_polygon
+from euc2k.sexpr import children, loads
+from euc2k.shared import Coordinates
+from euc2k.workflow import run_items
 
 RECORDS = [
     ('TRACK~{width}~1~~0 0 10 0', 'fp_line'),

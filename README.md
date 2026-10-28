@@ -1,6 +1,12 @@
-# **EasyEDA-Std.-2Kicad**
+# euc2k.py
 
-Paste a public **EasyEDA Standard** component link and get a KiCad 8/9/10 symbol and footprint on your computer. The app exports 2D libraries only. No account or search is needed. If you give it several links, it processes them one at a time.
+EUC2K means EasyEDA User Contributed To KiCad.
+
+Paste a public EasyEDA Standard component link and get a KiCad 8/9/10 symbol and footprint. Exports are 2D only. No account or search is needed; multiple links are processed sequentially.
+
+Unofficial tool, not affiliated with or endorsed by EasyEDA, JLC or LCSC; contributed components keep their authors’ rights.
+
+Inspired by easyeda2kicad.py (https://github.com/uPesy/easyeda2kicad.py). Independent implementation, no code copied.
 
 <p align="center">
   <img src="docs/assets/demo.gif" alt="EasyEDA to KiCad conversion demo">
@@ -15,16 +21,16 @@ Open a terminal and use the three commands for your system below.
 **Windows CMD:**
 
 ```bat
-git clone https://github.com/wysemon/EasyEDA-Std.-2Kicad.git
-cd EasyEDA-Std.-2Kicad
+git clone https://github.com/wysemon/euc2k.py.git
+cd euc2k.py
 run https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
 ```
 
 **Linux or macOS:**
 
 ```sh
-git clone https://github.com/wysemon/EasyEDA-Std.-2Kicad.git
-cd EasyEDA-Std.-2Kicad
+git clone https://github.com/wysemon/euc2k.py.git
+cd euc2k.py
 ./run.sh https://easyeda.com/component/7db93ef938c54a728e02f6579db05977
 ```
 
@@ -76,9 +82,9 @@ The summary below uses an example Linux checkout location. Your printed paths wi
 
 ```text
 Summary: 1 succeeded, 0 failed, 0 skipped.
-Output: /home/me/EasyEDA-Std.-2Kicad/output
-add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.kicad_sym in Symbol Libraries
-add /home/me/EasyEDA-Std.-2Kicad/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.pretty in Footprint Libraries
+Output: /home/me/euc2k.py/output
+add /home/me/euc2k.py/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.kicad_sym in Symbol Libraries
+add /home/me/euc2k.py/output/MAX98357A_NO_HOLES_7db93ef9/MAX98357A_NO_HOLES_7db93ef9.pretty in Footprint Libraries
 ```
 
 Components with no footprint geometry or footprint UUID export a symbol only. The app
@@ -132,7 +138,7 @@ Rebuild explicitly with `run convert <uuid>` (Linux/macOS: `./run.sh convert <uu
 
 The launchers install from the checkout, but `--file`, `--output`, default `output/`, and interactive `links.txt` use the directory you started in. Calling the launcher by its full path from another folder works too.
 
-The launchers pass this location through `EE2KICAD_CWD`. Installed console commands use the current directory unless that variable is set. Windows CMD restores its original console code page on exit.
+The launchers pass this location through `EUC2K_CWD`. Installed console commands use the current directory unless that variable is set. Windows CMD restores its original console code page on exit.
 
 ## Troubleshooting
 
@@ -145,7 +151,7 @@ The launchers pass this location through `EE2KICAD_CWD`. Installed console comma
 | Symbol looks tiny or far from the origin | Update the app, run `run convert <uuid>` (or `./run.sh convert <uuid>`), then reload the library in KiCad. Older output may have used zero for a missing EasyEDA origin. |
 | Text or pins look wrong | Update the app and re-convert the cache. Check the source and warnings before using the result. Include the raw record when reporting a bug. |
 | Duplicate pin warning | All pins are kept. Check the source and connectivity in KiCad; the duplicate may be intentional. |
-| Dependencies need refreshing | Changes to `pyproject.toml` trigger this automatically. Delete `.venv/.ee2kicad-ready` to force a refresh. |
+| Dependencies need refreshing | Changes to `pyproject.toml` trigger this automatically. Delete `.venv/.euc2k-ready` to force a refresh. |
 | Windows path is too long | Keep the checkout and output paths short. Sanitized titles use at most 60 ASCII characters, followed by `_uuid8`. |
 
 ## Be a polite client 🤝
@@ -170,7 +176,7 @@ TLS verification stays enabled. Redirects, logins, captchas and paywalls are not
 
 ## Other installation options
 
-After `pip install -e .`, use `euc2k <link>` without a subcommand. `euc2k` stands for EasyEDA User Contributed. The command also accepts `fetch ...`, `convert ...`, or no arguments for prompts.
+After `pip install -e .`, use `euc2k <link>` without a subcommand. `euc2k` stands for EasyEDA User Contributed To KiCad. The command also accepts `fetch ...`, `convert ...`, or no arguments for prompts.
 
 For a global command isolated from other projects, use `pipx install .` or `uv tool install .` from this checkout. These require pipx or uv and their tool directory on PATH.
 
@@ -203,23 +209,19 @@ Strict `--validate` checks file import, not ERC, DRC or fabrication suitability.
 
 `pytest -m live` opts into fetching exactly one public component through the normal paced client, including its retry/stop rules. It makes no search or footprint fallback requests and writes no output files.
 
-The normal suite deselects it. CI never runs it; `CI` or `EE2KICAD_DISABLE_LIVE` also forces a skip even with `-m live`. Other tests continue to block HTTP requests.
+The normal suite deselects it. CI never runs it; `CI` or `EUC2K_DISABLE_LIVE` also forces a skip even with `-m live`. Other tests continue to block HTTP requests.
 
 ## Project documentation
 
 - [Contributing](CONTRIBUTING.md): setup, code map, formatting and test commands.
 - [API and format notes](docs/API_NOTES.md): verified conventions and remaining limits.
-- [Report a problem](https://github.com/wysemon/EasyEDA-Std.-2Kicad/issues): include the component link, command and relevant warning.
+- [Report a problem](https://github.com/wysemon/euc2k.py/issues): include the component link, command and relevant warning.
 
 ## Credits and license
 
 Independent implementation from the supplied API/format description and real
 fixtures, released under the repository's MIT license. No upstream code copied.
-Related tools and format research:
-[easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py) (AGPL-3.0) and
-[JLC2KiCadLib](https://github.com/TousstNicolas/JLC2KiCadLib).
-Their source code was not incorporated. Component authors retain their rights;
-see each generated CREDITS.txt.
+Component authors retain their rights; see each generated CREDITS.txt.
 
 The [geometry test data](tests/fixtures/geometry/README.md) has a separate
 CC-BY-NC-SA 3.0 license and source attribution. The converter code stays MIT.

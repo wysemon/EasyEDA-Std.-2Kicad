@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.geometry import point_pairs
-from easyeda2kicad_local.sexpr import children, descendants, loads
-from easyeda2kicad_local.shared import UNIT
+from euc2k.converter import convert_response
+from euc2k.geometry import point_pairs
+from euc2k.sexpr import children, descendants, loads
+from euc2k.shared import UNIT
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 HEADER = 'b156dd172f7646a6a0d70c948b98a414'
@@ -110,9 +110,9 @@ def test_symbol_only_exports_no_invented_footprint(caplog):
 
 
 def test_symbol_only_cached_workflow_and_completion(tmp_path, monkeypatch, capsys):
-    from easyeda2kicad_local.client import EasyEDAClient
-    from easyeda2kicad_local.publication import libraries_complete
-    from easyeda2kicad_local.workflow import run_items
+    from euc2k.client import EasyEDAClient
+    from euc2k.publication import libraries_complete
+    from euc2k.workflow import run_items
 
     folder = tmp_path / 'buzzer'
     folder.mkdir()
@@ -141,13 +141,13 @@ def test_known_footprint_not_silently_downgraded_to_symbol_only():
 def test_symbol_only_failed_validation_preserves_existing(tmp_path, monkeypatch):
     from test_workflow import snapshot
 
-    from easyeda2kicad_local.converter import write_conversion
+    from euc2k.converter import write_conversion
 
     folder = tmp_path / 'buzzer'
     folder.mkdir()
     (folder / 'user.txt').write_bytes(b'keep')
     before = snapshot(folder)
-    monkeypatch.setattr('easyeda2kicad_local.converter.validate_libraries', lambda *_: False)
+    monkeypatch.setattr('euc2k.converter.validate_libraries', lambda *_: False)
     with pytest.raises(ValueError, match='KiCad validation failed'):
         write_conversion(load(BUZZER), folder, validate=True)
     assert snapshot(folder) == before
@@ -223,10 +223,10 @@ def test_multiunit_count_is_bounded():
 
 def test_stm32_partial_legacy_cache_is_reconverted_offline(tmp_path, monkeypatch, caplog):
     caplog.set_level(logging.INFO)
-    from easyeda2kicad_local.client import EasyEDAClient
-    from easyeda2kicad_local.converter import write_conversion
-    from easyeda2kicad_local.publication import COMPLETE, libraries_complete
-    from easyeda2kicad_local.workflow import run_items
+    from euc2k.client import EasyEDAClient
+    from euc2k.converter import write_conversion
+    from euc2k.publication import COMPLETE, libraries_complete
+    from euc2k.workflow import run_items
 
     response = load(STM32)
     incomplete = copy.deepcopy(response)
@@ -253,7 +253,7 @@ def test_stm32_partial_legacy_cache_is_reconverted_offline(tmp_path, monkeypatch
 def test_stm32_native_upgrade_and_export_preserve_both_units(tmp_path):
     import subprocess
 
-    from easyeda2kicad_local.converter import write_conversion
+    from euc2k.converter import write_conversion
 
     converted = write_conversion(load(STM32), tmp_path, validate=True)
     path = tmp_path / f'{converted.name}.kicad_sym'

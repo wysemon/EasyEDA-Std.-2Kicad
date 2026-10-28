@@ -168,7 +168,7 @@ def run_items(
                 if not dry_run and not (folder / 'raw.json').exists():
                     folder.mkdir(parents=True, exist_ok=True)
                     atomic_write(folder / 'raw.json', raw)
-                with tempfile.TemporaryDirectory(prefix='easyeda2kicad-') as tmp:
+                with tempfile.TemporaryDirectory(prefix='euc2k-') as tmp:
                     target = Path(tmp)
                     sources = {'raw.json': raw}
                     if cached and (cached / 'package_raw.json').exists():

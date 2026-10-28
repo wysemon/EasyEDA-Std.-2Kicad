@@ -6,8 +6,8 @@ from test_client import make_client
 from test_entrypoint import invoke_main
 from typer.testing import CliRunner
 
-from easyeda2kicad_local import cli
-from easyeda2kicad_local.client import EasyEDAClient
+from euc2k import cli
+from euc2k.client import EasyEDAClient
 
 
 @pytest.mark.parametrize('status', [0, 1])
@@ -140,7 +140,7 @@ def test_mixed_batch_really_converts_valid_components(monkeypatch, tmp_path, cap
 
 def test_invalid_inputs_do_not_reset_or_bypass_access_denial_stop(monkeypatch, tmp_path, capsys):
     client, clock, calls = make_client([403, 429])
-    monkeypatch.setattr('easyeda2kicad_local.workflow.EasyEDAClient', lambda delay: client)
+    monkeypatch.setattr('euc2k.workflow.EasyEDAClient', lambda delay: client)
     assert invoke_main(monkeypatch, ['bad-one', NEW, 'bad-two', OLD, '-o', str(tmp_path)]) == 1
     captured = capsys.readouterr()
     assert 'bad-one' in captured.err and 'bad-two' in captured.err

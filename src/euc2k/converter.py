@@ -1,4 +1,4 @@
-"""Conversion orchestration and compatibility exports for the original API."""
+"""Conversion orchestration and public conversion helpers."""
 
 import json
 import logging
@@ -10,8 +10,7 @@ from pathlib import Path
 
 from .client import UUID
 
-# Explicit aliases retain the original converter module's importable helpers.
-# Implementations live in focused modules; callers need not change imports.
+# Public helpers are implemented in focused modules.
 from .credits import owner as owner
 from .credits import render_credits
 from .files import atomic_write, read_limited
@@ -24,14 +23,14 @@ from .footprint import render_footprint
 from .publication import (
     check_identity,
     digest,
-    footprint_has_model,
     libraries_complete,
     local_path,
     publish,
     recover,
+    symbol_uuid,
     write_manifest,
 )
-from .sexpr import children, loads
+from .sexpr import loads
 from .shared import UNIT as UNIT
 from .shared import Coordinates as Coordinates
 from .shared import document as document
@@ -75,11 +74,10 @@ class Conversion:
     credits: str
 
 
-def convert_response(response, package=None, *, library_name=None):
+def convert_response(response, package=None):
     """Render validated source data without network or filesystem operations.
 
-    ``library_name`` is used to regenerate verified legacy library aliases;
-    normal exports use the sanitized title and UUID suffix. Essential record
+    Normal exports use the sanitized title and UUID suffix. Essential record
     errors abort the component; optional drawing errors remain visible warnings.
     """
     if response.get('success') is not True:
@@ -95,9 +93,7 @@ def convert_response(response, package=None, *, library_name=None):
     fp = document(package['dataStr']) if package else {'head': {}, 'shape': []}
     if not package:
         log.warning('%s: symbol only: no footprint in source', result['uuid'])
-    name = (
-        library_name or safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
-    )
+    name = safe_name(result.get('title') or result['uuid']) + '_' + result['uuid'][:8]
     sc = Coordinates(documents[0], True)
     fc = Coordinates(fp) if package else None
     pins, pads, sg, fg = [], [], [], []
@@ -226,7 +222,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
     check_identity(folder, response['result']['uuid'], name=converted.name)
     folder.parent.mkdir(parents=True, exist_ok=True)
     recover(folder)
-    with tempfile.TemporaryDirectory(prefix='.ee2kicad-stage-', dir=folder.parent) as temporary:
+    with tempfile.TemporaryDirectory(prefix='.euc2k-stage-', dir=folder.parent) as temporary:
         stage = Path(temporary)
         artifacts = {
             f'{converted.name}.kicad_sym': converted.symbol,
@@ -235,46 +231,6 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
         }
         if converted.footprint:
             artifacts[f'{converted.name}.pretty/{converted.name}.kicad_mod'] = converted.footprint
-        # Regenerate converter-owned pre-UUID names as well, so registered old
-        # libraries lose their model references without deleting any user files.
-        for old in folder.glob('*.pretty/*.kicad_mod'):
-            try:
-                tree = loads(read_limited(old).decode('utf-8'))
-            except ValueError:
-                continue  # A damaged current file can still be replaced safely.
-            if (
-                children(tree, 'generator') == [['generator', 'easyeda2kicad-local']]
-                and footprint_has_model(old)
-                and old.stem != converted.name
-            ):
-                old_symbol = folder / f'{old.stem}.kicad_sym'
-                source_uuids = []
-                if old_symbol.exists():
-                    old_tree = loads(read_limited(old_symbol).decode('utf-8'))
-                    source_uuids = [
-                        p[2]
-                        for symbol in children(old_tree, 'symbol')
-                        for p in children(symbol, 'property')
-                        if p[1] == 'EasyEDA UUID'
-                    ]
-                if source_uuids != [response['result']['uuid']]:
-                    log.warning(
-                        'Leaving unassociated legacy library %s untouched; inspect/remove its model reference manually.',
-                        old,
-                    )
-                    continue
-                if tree[1] != old.stem or safe_name(old.stem) != old.stem:
-                    raise ValueError(
-                        f'Cannot safely migrate legacy footprint {old}; move it aside first'
-                    )
-                alias = convert_response(response, package, library_name=old.stem)
-                artifacts[old.relative_to(folder).as_posix()] = alias.footprint
-                if old_symbol.exists():
-                    artifacts[old_symbol.name] = alias.symbol
-                log.warning(
-                    'Migrating legacy 3D-era library %s to 2D; existing model files are kept.',
-                    old.stem,
-                )
         credits = folder / 'CREDITS.txt'
         if credits.is_file() and read_limited(credits) != converted.credits.encode('utf-8'):
             saved = f'CREDITS.previous-{digest(credits)[:12]}.txt'
@@ -282,7 +238,7 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
             log.warning('Previous attribution preserved in %s.', saved)
         # Preserve edited generated files too. They may contain deliberate user
         # changes, even though their generator still identifies this converter.
-        previous_manifest = folder / '.ee2kicad-complete.json'
+        previous_manifest = folder / '.euc2k-complete.json'
         previous = {}
         if previous_manifest.exists():
             try:
@@ -304,7 +260,19 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
             ):
                 saved = relative + f'.previous-{digest(target)[:12]}'
                 artifacts[saved] = read_limited(target)
-                log.warning('Modified or legacy library preserved in %s before rebuilding.', saved)
+                log.warning('Modified library preserved in %s before rebuilding.', saved)
+        cached_identity = False
+        cached_source = folder / 'raw.json'
+        existing_symbol = folder / f'{converted.name}.kicad_sym'
+        if cached_source.is_file() and existing_symbol.is_file():
+            try:
+                cached_identity = (
+                    json.loads(read_limited(cached_source))['result']['uuid'].lower()
+                    == symbol_uuid(loads(read_limited(existing_symbol).decode('utf-8')))
+                    == response['result']['uuid'].lower()
+                )
+            except (ValueError, KeyError, TypeError, UnicodeError):
+                pass
         for relative, content in artifacts.items():
             target = local_path(folder, relative)
             if (
@@ -319,8 +287,9 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
                         f'Cannot confirm ownership of unreadable library: {target}; move it aside first'
                     ) from e
                 if (
-                    '(generator "easyeda2kicad-local")' not in text
-                    and '(generator easyeda2kicad-local)' not in text
+                    '(generator "euc2k")' not in text
+                    and '(generator euc2k)' not in text
+                    and not cached_identity
                 ):
                     raise ValueError(
                         f'Refusing to overwrite an unrelated library: {target}; move it aside first'
@@ -328,7 +297,9 @@ def write_conversion(response, folder: Path, package=None, *, validate=False, so
             path = local_path(stage, relative)
             path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write(path, content)
-        if not libraries_complete(stage, expected_uuid=response['result']['uuid']):
+        if not libraries_complete(
+            stage, expected_uuid=response['result']['uuid'], require_manifest=False
+        ):
             raise ValueError(
                 'Generated library structure is incomplete; previous libraries were kept'
             )

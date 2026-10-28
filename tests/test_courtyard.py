@@ -6,10 +6,10 @@ import pytest
 from test_pad_orientation import CASES, document, world_vertices
 from test_symbol_layout import children, one, sexpr
 
-from easyeda2kicad_local.bounds import arc_extrema, courtyard
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.footprint import Pad, parse_pad
-from easyeda2kicad_local.shared import Coordinates
+from euc2k.bounds import arc_extrema, courtyard
+from euc2k.converter import convert_response
+from euc2k.footprint import Pad, parse_pad
+from euc2k.shared import Coordinates
 
 
 def pad(**kwargs):

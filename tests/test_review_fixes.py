@@ -16,11 +16,11 @@ from test_symbol_layout import children, one, sexpr, texts
 from test_workflow import install_cache
 from typer.testing import CliRunner
 
-from easyeda2kicad_local import workflow
-from easyeda2kicad_local.cli import app
-from easyeda2kicad_local.client import EasyEDAClient
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.geometry import path_segments
+from euc2k import workflow
+from euc2k.cli import app
+from euc2k.client import EasyEDAClient
+from euc2k.converter import convert_response
+from euc2k.geometry import path_segments
 
 BOOTSTRAP = runpy.run_path(str(Path(__file__).parents[1] / 'scripts/bootstrap.py'))
 ensure_installed = BOOTSTRAP['ensure_installed']
@@ -133,11 +133,11 @@ def test_caller_relative_paths(monkeypatch, tmp_path, cached):
     checkout.mkdir()
     (caller.parent / 'links.txt').write_text(NEW)
     monkeypatch.chdir(checkout)
-    monkeypatch.setenv('EE2KICAD_CWD', str(caller))
+    monkeypatch.setenv('EUC2K_CWD', str(caller))
     calls = []
     monkeypatch.setattr(workflow.EasyEDAClient, 'component', lambda *a: pytest.fail('offline'))
     monkeypatch.setattr(
-        'easyeda2kicad_local.cli.run_items',
+        'euc2k.cli.run_items',
         lambda items, root, **kwargs: calls.append((items, root)) or 0,
     )
     args = ['convert', NEW] if cached else ['fetch', '--file', '../links.txt']
@@ -153,10 +153,10 @@ def test_caller_default_file_and_output(monkeypatch, tmp_path):
     checkout.mkdir()
     (caller / 'links.txt').write_text(NEW)
     monkeypatch.chdir(checkout)
-    monkeypatch.setenv('EE2KICAD_CWD', str(caller))
+    monkeypatch.setenv('EUC2K_CWD', str(caller))
     calls = []
     monkeypatch.setattr(
-        'easyeda2kicad_local.cli.run_items',
+        'euc2k.cli.run_items',
         lambda items, root, **kwargs: calls.append((items, root)) or 0,
     )
     assert invoke_main(monkeypatch, [], '\n') == 0
@@ -167,7 +167,7 @@ def test_bootstrap_hash_refresh_and_failed_install(tmp_path, monkeypatch):
     (tmp_path / '.venv').mkdir()
     project = tmp_path / 'pyproject.toml'
     project.write_text('[project]\nname="first"\n')
-    marker = tmp_path / '.venv/.ee2kicad-ready'
+    marker = tmp_path / '.venv/.euc2k-ready'
     marker.write_text('')  # Old marker format also triggers refresh.
     calls = []
     monkeypatch.setattr(
@@ -198,11 +198,11 @@ def test_windows_launcher_cleanup_and_shared_bootstrap():
     # Static safeguard on non-Windows hosts; native CMD is tested separately when available.
     script = (Path(__file__).parents[1] / 'run.bat').read_text()
     assert "in ('chcp')" in script
-    assert 'set "EE2KICAD_CWD=%CD%"' in script
+    assert 'set "EUC2K_CWD=%CD%"' in script
     assert '"%~dp0scripts\\bootstrap.py"' in script
     cleanup = script.split(':finish\n')[1]
-    assert 'chcp %ee_codepage%' in cleanup
-    assert cleanup.index('chcp %ee_codepage%') < cleanup.index('exit /b %ee_exit%')
+    assert 'chcp %euc2k_codepage%' in cleanup
+    assert cleanup.index('chcp %euc2k_codepage%') < cleanup.index('exit /b %euc2k_exit%')
     assert script.count('exit /b') == 1  # All failure and success paths use cleanup.
 
 

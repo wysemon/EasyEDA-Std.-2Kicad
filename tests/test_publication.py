@@ -1,8 +1,7 @@
-"""Offline migration, staged publication, rollback and crash-recovery checks."""
+"""Offline staged publication, rollback and crash-recovery checks."""
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -10,10 +9,10 @@ from pathlib import Path
 import pytest
 from test_workflow import install_cache, snapshot
 
-from easyeda2kicad_local import converter, publication
-from easyeda2kicad_local.client import EasyEDAClient
-from easyeda2kicad_local.converter import write_conversion
-from easyeda2kicad_local.workflow import libraries_complete, run_items
+from euc2k import converter, publication
+from euc2k.client import EasyEDAClient
+from euc2k.converter import write_conversion
+from euc2k.workflow import libraries_complete, run_items
 
 
 @pytest.fixture(autouse=True)
@@ -23,77 +22,19 @@ def forbid_component_requests(monkeypatch):
     )
 
 
-def legacy(response, folder, *, old_name=False):
-    c = write_conversion(response, folder)
-    (folder / publication.COMPLETE).unlink()
-    if old_name:
-        name = c.name.rsplit('_', 1)[0]
-        symbol = folder / f'{c.name}.kicad_sym'
-        symbol.rename(folder / f'{name}.kicad_sym')
-        pretty = folder / f'{c.name}.pretty'
-        pretty.rename(folder / f'{name}.pretty')
-        fp = folder / f'{name}.pretty' / f'{c.name}.kicad_mod'
-        fp.rename(fp.with_name(f'{name}.kicad_mod'))
-        for path in [folder / f'{name}.kicad_sym', folder / f'{name}.pretty' / f'{name}.kicad_mod']:
-            path.write_text(path.read_text().replace(c.name, name), encoding='utf-8')
-    fp = next(folder.glob('*.pretty/*.kicad_mod'))
-    fp.write_text(
-        fp.read_text().rstrip()[:-1] + '\n(model "legacy.step" (offset (xyz 0 0 0)))\n)\n',
-        encoding='utf-8',
-    )
-    return c, fp
-
-
-@pytest.mark.parametrize('old_name', [False, True])
-def test_legacy_3d_cache_migrates_offline_and_is_idempotent(response, tmp_path, old_name):
+def test_missing_completion_marker_rebuilds_from_cache(response, tmp_path, capsys):
     folder, raw = install_cache(tmp_path, response)
-    c, fp = legacy(response, folder, old_name=old_name)
-    models = folder / 'legacy.3dshapes'
-    models.mkdir()
-    (models / 'legacy.step').write_bytes(b'user owned model')
-    (folder / 'CREDITS.txt').write_text('User attribution\nkeep verbatim\n', encoding='utf-8')
-    assert publication.footprint_has_model(fp)
-    assert not libraries_complete(folder)
-    uuid = response['result']['uuid']
-    assert run_items([uuid], tmp_path) == 0
-    assert libraries_complete(folder)
-    assert all(not publication.footprint_has_model(p) for p in folder.glob('*.pretty/*.kicad_mod'))
-    assert (folder / 'raw.json').read_bytes() == raw
-    assert (models / 'legacy.step').read_bytes() == b'user owned model'
-    assert (
-        next(folder.glob('CREDITS.previous-*.txt')).read_text()
-        == 'User attribution\nkeep verbatim\n'
-    )
-    assert (folder / f'{c.name}.kicad_sym').exists()
-    before = snapshot(folder)
-    times = {p: p.stat().st_mtime_ns for p in folder.rglob('*') if p.is_file()}
-    assert run_items([uuid], tmp_path) == 0
-    assert snapshot(folder) == before
-    assert {p: p.stat().st_mtime_ns for p in times} == times
-
-
-def test_legacy_missing_footprint_cache_fails_offline(response, tmp_path, caplog):
-    folder, _ = install_cache(tmp_path, response)
-    legacy(response, folder)
-    response['result'].pop('packageDetail')
-    raw = json.dumps(response).encode()
-    (folder / 'raw.json').write_bytes(raw)
-    before = snapshot(folder)
-    assert run_items([response['result']['uuid']], tmp_path) == 1
-    assert snapshot(folder) == before
-    assert 'Footprint fallback is not cached' in caplog.text
-    assert not libraries_complete(folder)
-
-
-def test_valid_pre_manifest_2d_output_is_skipped(response, tmp_path, capsys):
-    folder, _ = install_cache(tmp_path, response)
     write_conversion(response, folder)
     (folder / publication.COMPLETE).unlink()
-    assert libraries_complete(folder)
-    before = snapshot(folder)
+    (folder / '.unrecognized-complete.json').write_bytes(b'keep marker bytes')
+    (folder / 'user.txt').write_bytes(b'keep user file')
+    assert not libraries_complete(folder)
     assert run_items([response['result']['uuid']], tmp_path) == 0
-    assert snapshot(folder) == before
-    assert '1 skipped' in capsys.readouterr().out
+    assert libraries_complete(folder)
+    assert (folder / 'raw.json').read_bytes() == raw
+    assert (folder / '.unrecognized-complete.json').read_bytes() == b'keep marker bytes'
+    assert (folder / 'user.txt').read_bytes() == b'keep user file'
+    assert '1 succeeded' in capsys.readouterr().out
 
 
 def test_pre_manifest_missing_pin_is_not_skipped(response, tmp_path):
@@ -118,22 +59,6 @@ def test_pre_manifest_partial_multiunit_is_rejected_without_replacing(response, 
     assert run_items([response['result']['uuid']], tmp_path) == 1
     assert 'Multi-unit' in caplog.text
     assert snapshot(folder) == before
-
-
-def test_foreign_converter_owned_library_is_not_migrated(response, tmp_path, caplog):
-    folder, _ = install_cache(tmp_path, response)
-    legacy(response, folder)
-    other = json.loads(json.dumps(response))
-    other['result']['uuid'] = 'a' * 32
-    foreign = tmp_path / 'foreign'
-    c, fp = legacy(other, foreign)
-    shutil.copy2(foreign / f'{c.name}.kicad_sym', folder)
-    shutil.copytree(fp.parent, folder / fp.parent.name)
-    kept = (folder / fp.parent.name / fp.name).read_bytes()
-    assert run_items([response['result']['uuid']], tmp_path) == 0
-    assert (folder / fp.parent.name / fp.name).read_bytes() == kept
-    assert 'Leaving unassociated legacy library' in caplog.text
-    assert libraries_complete(folder)
 
 
 @pytest.mark.parametrize('existing', [False, True])
@@ -175,7 +100,7 @@ def test_failure_never_publishes_partial_or_destroys_previous(
 
         def replace(source, target):
             nonlocal calls
-            if '.ee2kicad-stage-' in str(source) and Path(source).name == Path(target).name:
+            if '.euc2k-stage-' in str(source) and Path(source).name == Path(target).name:
                 calls += 1
                 if calls == 2:
                     raise OSError('injected publication failure')
@@ -187,8 +112,8 @@ def test_failure_never_publishes_partial_or_destroys_previous(
         write_conversion(response, folder)
     assert snapshot(folder) == before
     assert libraries_complete(folder) is existing
-    assert not list(tmp_path.rglob('.ee2kicad-stage-*'))
-    assert not list(tmp_path.rglob('.ee2kicad-backup-*'))
+    assert not list(tmp_path.rglob('.euc2k-stage-*'))
+    assert not list(tmp_path.rglob('.euc2k-backup-*'))
 
 
 @pytest.mark.parametrize('existing', [False, True])
@@ -214,7 +139,7 @@ def test_missing_requested_validator_cannot_skip_complete_cache(response, tmp_pa
     folder, _ = install_cache(tmp_path, response)
     write_conversion(response, folder)
     before = snapshot(folder)
-    monkeypatch.setattr('easyeda2kicad_local.validation.shutil.which', lambda _: None)
+    monkeypatch.setattr('euc2k.validation.shutil.which', lambda _: None)
     assert run_items([response['result']['uuid']], tmp_path, validate=True) == 1
     assert snapshot(folder) == before
 
@@ -288,7 +213,7 @@ def test_balanced_incomplete_legacy_pad_is_not_complete(response, tmp_path):
     c = write_conversion(response, folder)
     (folder / publication.COMPLETE).unlink()
     fp = folder / f'{c.name}.pretty' / f'{c.name}.kicad_mod'
-    fp.write_text(f'(footprint "{c.name}" (generator "easyeda2kicad-local") (pad "1" smd rect))')
+    fp.write_text(f'(footprint "{c.name}" (generator "euc2k") (pad "1" smd rect))')
     assert not libraries_complete(folder)
     assert run_items([response['result']['uuid']], tmp_path) == 0
     assert libraries_complete(folder)
@@ -305,7 +230,7 @@ def test_rollback_failure_keeps_recovery_material(response, tmp_path, monkeypatc
 
     def replace(source, target):
         nonlocal publishing, failed
-        if '.ee2kicad-stage-' in str(source) and Path(source).name == Path(target).name:
+        if '.euc2k-stage-' in str(source) and Path(source).name == Path(target).name:
             publishing += 1
             if publishing == 2:
                 failed = True
@@ -319,25 +244,11 @@ def test_rollback_failure_keeps_recovery_material(response, tmp_path, monkeypatc
     with pytest.raises(OSError, match='rollback interrupted'):
         write_conversion(response, folder)
     assert (folder / publication.PENDING).exists()
-    assert list(folder.glob('.ee2kicad-backup-*'))
+    assert list(folder.glob('.euc2k-backup-*'))
     assert not libraries_complete(folder)
     monkeypatch.setattr(publication.os, 'replace', original)
     publication.recover(folder)
     assert snapshot(folder) == before
-    assert libraries_complete(folder)
-
-
-def test_legacy_migration_preserves_separate_package_cache(response, tmp_path):
-    folder, _ = install_cache(tmp_path, response)
-    legacy(response, folder)
-    package = response['result'].pop('packageDetail')
-    raw = json.dumps(response).encode()
-    package_raw = json.dumps({'success': True, 'result': package}).encode()
-    (folder / 'raw.json').write_bytes(raw)
-    (folder / 'package_raw.json').write_bytes(package_raw)
-    assert run_items([response['result']['uuid']], tmp_path) == 0
-    assert (folder / 'raw.json').read_bytes() == raw
-    assert (folder / 'package_raw.json').read_bytes() == package_raw
     assert libraries_complete(folder)
 
 
@@ -350,8 +261,8 @@ def test_replacement_preserves_existing_source_and_libraries_on_real_process_exi
     script = """
 import json, os, sys
 from pathlib import Path
-from easyeda2kicad_local import publication
-from easyeda2kicad_local.converter import write_conversion
+from euc2k import publication
+from euc2k.converter import write_conversion
 folder = Path(sys.argv[1])
 data = json.loads((folder / 'raw.json').read_bytes())
 data['result']['description'] += ' replacement with changed metadata'
@@ -359,7 +270,7 @@ original = publication.os.replace
 calls = 0
 def crash(source, target):
     global calls
-    if '.ee2kicad-stage-' in str(source) and Path(source).name == Path(target).name:
+    if '.euc2k-stage-' in str(source) and Path(source).name == Path(target).name:
         calls += 1
         if calls == 2:
             os._exit(23)
@@ -377,7 +288,7 @@ write_conversion(data, folder)
     assert snapshot(folder) == before
     assert libraries_complete(folder)
     assert (folder / 'raw.json').read_bytes() == raw
-    assert not list(tmp_path.rglob('.ee2kicad-stage-*'))
+    assert not list(tmp_path.rglob('.euc2k-stage-*'))
 
 
 def test_force_does_not_replace_cache_until_validation_passes(response, tmp_path, monkeypatch):
@@ -405,13 +316,11 @@ def test_force_does_not_replace_cache_until_validation_passes(response, tmp_path
     assert calls == [uuid, uuid]
 
 
-@pytest.mark.parametrize('mode', ['incomplete', 'complete', 'legacy', 'pending'])
+@pytest.mark.parametrize('mode', ['incomplete', 'complete', 'pending'])
 def test_dry_run_never_changes_existing_files_or_directories(response, tmp_path, mode):
     folder, _ = install_cache(tmp_path, response)
     if mode in ('complete', 'pending'):
         write_conversion(response, folder)
-    if mode == 'legacy':
-        legacy(response, folder)
     if mode == 'pending':
         (folder / publication.PENDING).write_text('invalid journal must not be touched by dry run')
     before = snapshot(tmp_path)
@@ -462,3 +371,30 @@ def test_model_word_in_text_is_not_a_model_reference(tmp_path):
     path = tmp_path / 'test.kicad_mod'
     path.write_text('(footprint "x" (fp_text user "(model not a reference)"))')
     assert not publication.footprint_has_model(path)
+
+
+def test_unrecognized_metadata_and_generator_rebuild_without_losing_files(response, tmp_path):
+    folder, raw = install_cache(tmp_path, response)
+    converted = write_conversion(response, folder)
+    (folder / publication.COMPLETE).unlink()
+    preserved = {}
+    for path in [
+        folder / f'{converted.name}.kicad_sym',
+        folder / f'{converted.name}.pretty' / f'{converted.name}.kicad_mod',
+    ]:
+        data = path.read_bytes().replace(b'(generator "euc2k")', b'(generator "unrecognized")')
+        path.write_bytes(data)
+        preserved[path] = data
+    for name in ('.unrecognized-complete.json', '.unrecognized-pending.json', 'user.txt'):
+        (folder / name).write_bytes(b'keep these exact bytes')
+    assert not libraries_complete(folder)
+    assert run_items([response['result']['uuid']], tmp_path) == 0
+    assert libraries_complete(folder)
+    assert (folder / 'raw.json').read_bytes() == raw
+    for path, data in preserved.items():
+        assert b'(generator "euc2k")' in path.read_bytes()
+        assert any(
+            saved.read_bytes() == data for saved in path.parent.glob(path.name + '.previous-*')
+        )
+    for name in ('.unrecognized-complete.json', '.unrecognized-pending.json', 'user.txt'):
+        assert (folder / name).read_bytes() == b'keep these exact bytes'

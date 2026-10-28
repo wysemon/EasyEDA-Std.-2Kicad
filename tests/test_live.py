@@ -2,9 +2,9 @@
 
 import pytest
 
-from easyeda2kicad_local.client import EasyEDAClient
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.workflow import read_response
+from euc2k.client import EasyEDAClient
+from euc2k.converter import convert_response
+from euc2k.workflow import read_response
 
 
 @pytest.mark.live

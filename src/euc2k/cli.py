@@ -15,13 +15,13 @@ from .workflow import run_items
 app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_enable=False,
-    help='Convert public EasyEDA Standard components into local KiCad libraries.',
+    help='Convert public EasyEDA Standard components into local 2D KiCad libraries.',
 )
 
 
 def version_callback(value):
     if value:
-        typer.echo(f'EasyEDA-Std.-2Kicad {__version__}')
+        typer.echo(f'euc2k {__version__}')
         raise typer.Exit()
 
 
@@ -61,7 +61,7 @@ def caller_path(path):
     """Resolve user paths relative to the invoking directory, not the checkout."""
     if path.is_absolute():
         return path
-    return (Path(os.environ.get('EE2KICAD_CWD') or Path.cwd()) / path).resolve()
+    return (Path(os.environ.get('EUC2K_CWD') or Path.cwd()) / path).resolve()
 
 
 def interactive_inputs():
@@ -98,6 +98,8 @@ def main(args=None):
                 return
         if arguments[0] not in ('fetch', 'convert', '--help', '-h', '--version'):
             arguments.insert(0, 'fetch')
+        if arguments[0] in ('--help', '-h'):
+            typer.echo('euc2k: EasyEDA User Contributed To KiCad')
         program = Path(sys.argv[0]).stem
         app(args=arguments, prog_name='euc2k' if program == '__main__' else program)
     except Exception as e:

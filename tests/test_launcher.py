@@ -28,46 +28,46 @@ def test_shell_first_run_reuse_paths_and_exit_status(tmp_path):
         + """
 import json, os, pathlib, runpy, shutil, subprocess, sys
 args = sys.argv[1:]
-with open(os.environ['EE_LAUNCH_LOG'], 'a') as f:
-    f.write(json.dumps({'args': args, 'cwd': os.getcwd(), 'utf8': os.environ.get('PYTHONUTF8'), 'caller': os.environ.get('EE2KICAD_CWD')}) + '\\n')
+with open(os.environ['EUC2K_LAUNCH_LOG'], 'a') as f:
+    f.write(json.dumps({'args': args, 'cwd': os.getcwd(), 'utf8': os.environ.get('PYTHONUTF8'), 'caller': os.environ.get('EUC2K_CWD')}) + '\\n')
 if args[:2] == ['-m', 'venv']:
     target = pathlib.Path(args[2]) / 'bin' / 'python'
     target.parent.mkdir(parents=True)
     shutil.copy2(__file__, target)
 if args == ['scripts/bootstrap.py']:
     def install(command, **kwargs):
-        with open(os.environ['EE_LAUNCH_LOG'], 'a') as f:
+        with open(os.environ['EUC2K_LAUNCH_LOG'], 'a') as f:
             f.write(json.dumps({'args': command[1:]}) + '\\n')
         return subprocess.CompletedProcess(command, 0)
     subprocess.run = install
     runpy.run_path(args[0], run_name='__main__')
-if args[:2] == ['-m', 'easyeda2kicad_local']:
-    sys.exit(int(os.environ.get('EE_APP_EXIT', '0')))
+if args[:2] == ['-m', 'euc2k']:
+    sys.exit(int(os.environ.get('EUC2K_APP_EXIT', '0')))
 """
     )
     bootstrap.chmod(0o755)
     env = dict(
         os.environ,
         PATH=str(tools) + os.pathsep + os.environ['PATH'],
-        EE_LAUNCH_LOG=str(tmp_path / 'calls.jsonl'),
+        EUC2K_LAUNCH_LOG=str(tmp_path / 'calls.jsonl'),
     )
     args = [str(checkout / 'run.sh'), 'a link with spaces', NEW_UUID]
     first = subprocess.run(args, cwd=tmp_path, env=env, capture_output=True, text=True)
     assert first.returncode == 0, first.stderr
     import hashlib
 
-    marker = checkout / '.venv/.ee2kicad-ready'
+    marker = checkout / '.venv/.euc2k-ready'
     assert (
         marker.read_text().strip()
         == hashlib.sha256((checkout / 'pyproject.toml').read_bytes()).hexdigest()
     )
-    env['EE_APP_EXIT'] = '7'
+    env['EUC2K_APP_EXIT'] = '7'
     second = subprocess.run(args, cwd=tmp_path, env=env, capture_output=True, text=True)
     assert second.returncode == 7
-    calls = [json.loads(s) for s in Path(env['EE_LAUNCH_LOG']).read_text().splitlines()]
+    calls = [json.loads(s) for s in Path(env['EUC2K_LAUNCH_LOG']).read_text().splitlines()]
     assert sum(c['args'][:2] == ['-m', 'venv'] for c in calls) == 1
     assert sum(c['args'][:2] == ['-m', 'pip'] for c in calls) == 1
-    launches = [c for c in calls if c['args'][:2] == ['-m', 'easyeda2kicad_local']]
+    launches = [c for c in calls if c['args'][:2] == ['-m', 'euc2k']]
     assert len(launches) == 2
     assert all(
         c['args'][2:] == args[1:]
@@ -81,7 +81,7 @@ if args[:2] == ['-m', 'easyeda2kicad_local']:
     (checkout / 'pyproject.toml').write_text('[project]\nname = "changed"\n')
     third = subprocess.run(args, cwd=tmp_path, env=env, capture_output=True, text=True)
     assert third.returncode == 7, third.stderr
-    calls = [json.loads(s) for s in Path(env['EE_LAUNCH_LOG']).read_text().splitlines()]
+    calls = [json.loads(s) for s in Path(env['EUC2K_LAUNCH_LOG']).read_text().splitlines()]
     assert sum(c['args'][:2] == ['-m', 'pip'] for c in calls) == 2
     assert sum(c['args'][:2] == ['-m', 'venv'] for c in calls) == 1
     assert (
@@ -128,15 +128,13 @@ def test_native_windows_caller_codepage_and_exit_status(tmp_path):
     subprocess.run(
         [sys.executable, '-m', 'venv', '--without-pip', str(checkout / '.venv')], check=True
     )
-    (checkout / '.venv/.ee2kicad-ready').write_text(
-        hashlib.sha256(project.read_bytes()).hexdigest()
-    )
-    app = checkout / 'easyeda2kicad_local'
+    (checkout / '.venv/.euc2k-ready').write_text(hashlib.sha256(project.read_bytes()).hexdigest())
+    app = checkout / 'euc2k'
     app.mkdir()
     (app / '__init__.py').write_text('')
     (app / '__main__.py').write_text(
         'import json, os, sys\n'
-        'print("EE_JSON=" + json.dumps({"cwd": os.environ["EE2KICAD_CWD"], "args": sys.argv[1:]}))\n'
+        'print("EUC2K_JSON=" + json.dumps({"cwd": os.environ["EUC2K_CWD"], "args": sys.argv[1:]}))\n'
         'sys.exit(7)\n'
     )
     cmd = os.environ.get('COMSPEC', 'cmd.exe')
@@ -146,14 +144,14 @@ def test_native_windows_caller_codepage_and_exit_status(tmp_path):
     harness.write_text(
         '@echo off\nchcp 437 >nul\n'
         f'call "{checkout / "run.bat"}" "a&b" "link with spaces"\n'
-        'set "ee_test_result=%errorlevel%"\nchcp\n'
-        f'chcp {codepage} >nul\nexit /b %ee_test_result%\n'
+        'set "euc2k_test_result=%errorlevel%"\nchcp\n'
+        f'chcp {codepage} >nul\nexit /b %euc2k_test_result%\n'
     )
     run = subprocess.run([cmd, '/d', '/c', str(harness)], cwd=tmp_path, capture_output=True)
     assert run.returncode == 7, run.stdout + run.stderr
     lines = run.stdout.decode('utf-8', errors='replace').splitlines()
     payload = json.loads(
-        next(line.removeprefix('EE_JSON=') for line in lines if line.startswith('EE_JSON='))
+        next(line.removeprefix('EUC2K_JSON=') for line in lines if line.startswith('EUC2K_JSON='))
     )
     assert payload == {'cwd': str(tmp_path), 'args': ['a&b', 'link with spaces']}
     assert re.search(rb'437\s*$', run.stdout)

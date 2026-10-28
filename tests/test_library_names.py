@@ -2,7 +2,7 @@ import copy
 
 from test_symbol_layout import children, one, sexpr
 
-from easyeda2kicad_local.converter import safe_name, write_conversion
+from euc2k.converter import safe_name, write_conversion
 
 
 def test_identical_titles_have_distinct_library_names(response, tmp_path):

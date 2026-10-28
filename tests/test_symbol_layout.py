@@ -10,7 +10,7 @@ import subprocess
 import pytest
 from conftest import OLD
 
-from easyeda2kicad_local.converter import convert_response, write_conversion
+from euc2k.converter import convert_response, write_conversion
 
 
 def sexpr(text):

@@ -2,7 +2,7 @@ import httpx
 import pytest
 from conftest import NEW
 
-from easyeda2kicad_local.client import HEADERS, EasyEDAClient, FetchError, StopRun, parse_uuid
+from euc2k.client import HEADERS, EasyEDAClient, FetchError, StopRun, parse_uuid
 
 
 @pytest.mark.parametrize('text', [NEW, NEW.upper(), f'https://easyeda.com/component/{NEW}/?abc=1'])
@@ -148,7 +148,7 @@ def test_reject_host_variants(host):
 
 
 def test_editor_version_constant_is_sent():
-    from easyeda2kicad_local.client import EDITOR_VERSION
+    from euc2k.client import EDITOR_VERSION
 
     client, clock, calls = make_client([200])
     with client:

@@ -1,4 +1,4 @@
-# EasyEDA Standard API and conversion notes
+# euc2k.py: API and conversion notes
 
 ## Endpoint and scope
 
@@ -219,9 +219,8 @@ Two consecutive 403/429 responses still stop the entire run.
 
 A cached item is complete only with usable `.kicad_sym` and
 `.pretty/*.kicad_mod` files containing pins/pads and no model references.
-New output also has `.ee2kicad-complete.json` with per-file SHA-256 hashes.
-A pending publish journal always makes output incomplete. Legacy 2D output
-without a manifest is accepted after structural and cached source-count checks.
+New output also has `.euc2k-complete.json` with per-file SHA-256 hashes.
+A pending publish journal always makes output incomplete. Output without a recognized manifest is incomplete and rebuilt from cache.
 Completion also checks the full UUID against raw.json and the symbol's EasyEDA
 UUID property, the symbol/footprint entry names against their filenames, and
 the symbol's Footprint property against its paired library. Comparisons of UUIDs
@@ -229,7 +228,7 @@ ignore hex letter case. Conflicting cache/manifest/target-symbol identities fail
 before any replacement or initial cache write, even with `--force`. The usual
 title-plus-eight-UUID-character naming stays unchanged; a collision requires a
 different output root rather than sharing another component's folder.
-Legacy unit-1 outputs with nonempty subparts, or outputs missing source pins,
+Partial unit-1 outputs with nonempty subparts, or outputs missing source pins,
 pads, vias or holes, cannot silently pass this check. Incomplete libraries are rebuilt from raw cache
 without requests, including no footprint fallback. Missing
 fallback cache is an offline error; explicit `--force` allows retrieval.
@@ -253,7 +252,7 @@ bytes. Existing files remain available after a rejected conversion.
 
 Both launchers call the same stdlib-only `scripts/bootstrap.py`. The ready-marker
 contains the SHA-256 of pyproject.toml, and only advances after successful pip
-installation. They pass their original directory via `EE2KICAD_CWD`; relative
+installation. They pass their original directory via `EUC2K_CWD`; relative
 input/output paths and interactive defaults use that directory. Windows CMD
 restores the saved `chcp` code page on both success and normal failure paths.
 
@@ -286,7 +285,7 @@ All generated libraries, CREDITS and raw/fallback cache files use same-directory
 temporary files followed by `os.replace()`. Interrupted writes leave the old
 complete file (or no file), and normal failures remove temporary files. Conversions now stage every artifact before publishing. Explicit validation runs
 on disposable copies before publication and fails if KiCad is unavailable.
-Publication backs up replaced files, records `.ee2kicad-pending.json`, replaces
+Publication backs up replaced files, records `.euc2k-pending.json`, replaces
 artifacts and installs completion metadata last. Normal failures roll back;
 the next non-dry run recovers a journal left by process interruption. Recovery
 preserves caches and unrelated files. This is recoverable multi-file publication,
@@ -296,15 +295,12 @@ After confirming no converter is running, these can be inspected and cleaned
 up manually; do not remove recovery material while a pending journal exists.
 Do not run concurrent conversions into the same component folder.
 
-Legacy converter-owned footprints with actual `(model ...)` nodes are regenerated
-from cached source. Pre-UUID library names are regenerated in place as aliases when their paired
-symbol UUID verifies ownership; unassociated libraries are left untouched with
-a manual-cleanup warning;
-current UUID-suffixed libraries are also written. Source SVGNODE metadata alone
-does not trigger migration. Existing STEP/WRL files are never removed. Missing
-footprint cache fails offline. Changed attribution, changed legacy libraries and manifest-detected edits
-are preserved in hash-suffixed previous files. Unrelated library files are not
-overwritten.
+Only `.euc2k-complete.json` and `.euc2k-pending.json` are recognized as
+completion and recovery metadata. Unrecognized files are left untouched; missing
+completion metadata causes offline rebuilding from raw.json. Replaced library
+bytes are preserved in hash-suffixed previous files. A matching cached source
+and symbol UUID are required to replace files without recognized ownership.
+Unrelated libraries without that identity evidence are refused.
 
 Manifest-owned damaged libraries can be rebuilt without decoding their old
 contents. Invalid UTF-8 or UTF-16 files are preserved byte-for-byte in previous
@@ -329,7 +325,7 @@ Component output folder names already followed this scheme and remain stable.
 EasyEDAClient's default pacing and bounded retries. No search or package
 fallback request is made. It checks the response and in-memory conversion. The
 normal pytest selection is `not live`; CI explicitly excludes live tests and
-the network fixture skips them whenever CI or EE2KICAD_DISABLE_LIVE is set.
+the network fixture skips them whenever CI or EUC2K_DISABLE_LIVE is set.
 
 ## ESP32 origin regression
 
@@ -416,7 +412,7 @@ The Python 3.11/3.12 Ubuntu/Windows matrix remains. The native matrix installs
 KiCad 8, 9 and 10 from the team's `ppa:kicad/kicad-{major}.0-releases` PPAs on
 Ubuntu 24.04. The default Ubuntu repository supplies KiCad 7, so each job checks
 that both kicad-cli and pcbnew report the requested major before testing.
-`EE2KICAD_REQUIRE_KICAD=1` and `EE2KICAD_REQUIRE_PCBNEW=1` prevent silently
+`EUC2K_REQUIRE_KICAD=1` and `EUC2K_REQUIRE_PCBNEW=1` prevent silently
 skipping the required tools. No EasyEDA network requests run in CI.
 
 All **37 native cases** pass separately on **8.0.9**, **9.0.9** and **10.0.7**
@@ -484,7 +480,7 @@ Incomplete/nested/unknown unit layouts, parent geometry differing from the first
 unit, or any unparseable unit element fail the whole component. Duplicate pin
 numbers still warn and remain stored. Limits are 100 units, 10,000 combined
 shapes and the existing total primitive bound. Cache pin counts include all units;
-a legacy unit-1-only export must be rebuilt from raw bytes without HTTP.
+a partial unit-1-only export must be rebuilt from raw bytes without HTTP.
 
 Origin fallback warnings now identify `symbol` or `footprint` (including failures
 to resolve an origin). New imported fixtures omit symbol head.x/y and verify the

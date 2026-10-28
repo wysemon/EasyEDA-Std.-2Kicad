@@ -11,7 +11,7 @@ NEW = 'f6ad09a5a9e24d199330c64690aa6c38'
 
 
 def pytest_configure(config):
-    if os.environ.get('EE2KICAD_REQUIRE_KICAD') and not shutil.which('kicad-cli'):
+    if os.environ.get('EUC2K_REQUIRE_KICAD') and not shutil.which('kicad-cli'):
         raise pytest.UsageError(
             'Native integration requires kicad-cli on PATH; no silent skip is allowed'
         )
@@ -33,8 +33,8 @@ def no_live_network(monkeypatch, request):
     import httpx
 
     if request.node.get_closest_marker('live'):
-        if os.environ.get('CI') or os.environ.get('EE2KICAD_DISABLE_LIVE'):
-            pytest.skip('Live network tests are disabled in CI and by EE2KICAD_DISABLE_LIVE')
+        if os.environ.get('CI') or os.environ.get('EUC2K_DISABLE_LIVE'):
+            pytest.skip('Live network tests are disabled in CI and by EUC2K_DISABLE_LIVE')
         return
 
     def refuse(*args, **kwargs):

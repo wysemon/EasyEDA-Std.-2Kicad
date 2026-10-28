@@ -9,7 +9,7 @@ import pytest
 from test_symbol_layout import children, one, sexpr, texts
 from test_validation import validate_libraries
 
-from easyeda2kicad_local.converter import convert_response, write_conversion
+from euc2k.converter import convert_response, write_conversion
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 OLED = '6c69c66aa27f4c50aceb6e8226ef8d27'

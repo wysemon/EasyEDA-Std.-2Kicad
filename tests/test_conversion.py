@@ -8,7 +8,7 @@ import subprocess
 import pytest
 from conftest import OLD
 
-from easyeda2kicad_local.converter import (
+from euc2k.converter import (
     Coordinates,
     convert_response,
     document,
@@ -17,7 +17,7 @@ from easyeda2kicad_local.converter import (
     safe_name,
     write_conversion,
 )
-from easyeda2kicad_local.geometry import path_segments
+from euc2k.geometry import path_segments
 
 
 def test_golden_geometry(response, caplog):
@@ -158,7 +158,7 @@ def test_fixture_pin_path_tokenization(response):
     """Compare compact and spaced forms of every real pin, in both fixtures."""
     import re
 
-    from easyeda2kicad_local.converter import parse_pin
+    from euc2k.converter import parse_pin
 
     data = response['result']['dataStr']
     coords = Coordinates(data, True)

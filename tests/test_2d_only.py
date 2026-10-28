@@ -7,10 +7,10 @@ import pytest
 from test_new_fixtures import SX, load
 from typer.testing import CliRunner
 
-from easyeda2kicad_local.cli import app
-from easyeda2kicad_local.client import EasyEDAClient, FetchError
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.workflow import run_items
+from euc2k.cli import app
+from euc2k.client import EasyEDAClient, FetchError
+from euc2k.converter import convert_response
+from euc2k.workflow import run_items
 
 
 def test_removed_model_option_is_rejected():

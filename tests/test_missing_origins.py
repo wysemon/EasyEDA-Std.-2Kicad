@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from test_symbol_layout import children, one, sexpr
 
-from easyeda2kicad_local.converter import convert_response, write_conversion
-from easyeda2kicad_local.shared import Coordinates
+from euc2k.converter import convert_response, write_conversion
+from euc2k.shared import Coordinates
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 ESP32_IDS = ['2e51d5a642224cf198048941f0630f26', 'dd15f28aa16b42c0803759cacb9683e8']

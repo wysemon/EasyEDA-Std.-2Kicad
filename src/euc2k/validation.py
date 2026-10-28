@@ -19,7 +19,7 @@ def validate_libraries(folder: Path, name: str):
         )
         return False
     passed = True
-    with tempfile.TemporaryDirectory(prefix='ee2kicad-validate-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='euc2k-validate-') as temporary:
         work = Path(temporary)
         symbol = work / f'{name}.kicad_sym'
         pretty = work / f'{name}.pretty'

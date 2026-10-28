@@ -317,7 +317,7 @@ def render_symbol(result, data, name, sc, sg, pins, *, has_footprint=True, units
             f'(symbol {q(name + "_1_1")}\n' + '\n'.join(p.render() for p in pins) + ')\n'
         )
     symbol = (
-        f'(kicad_symbol_lib (version 20231120) (generator "easyeda2kicad-local")\n'
+        f'(kicad_symbol_lib (version 20231120) (generator "euc2k")\n'
         f'(symbol {q(name)} (pin_names (offset 0.508)) (in_bom yes) (on_board yes)\n{props}\n'
         + body
         + '))\n'

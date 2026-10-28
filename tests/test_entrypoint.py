@@ -6,7 +6,7 @@ from conftest import NEW, OLD
 from rich.text import Text
 from test_workflow import install_cache
 
-from easyeda2kicad_local import cli
+from euc2k import cli
 
 
 def invoke_main(monkeypatch, args, stdin='', *, program='euc2k'):
@@ -74,9 +74,9 @@ def test_console_command_declared():
     from pathlib import Path
 
     config = tomllib.loads((Path(__file__).parents[1] / 'pyproject.toml').read_text())
-    assert config['project']['name'] == 'EasyEDA-Std.-2Kicad'
+    assert config['project']['name'] == 'euc2k'
     assert config['project']['scripts'] == {
-        'euc2k': 'easyeda2kicad_local.cli:main',
+        'euc2k': 'euc2k.cli:main',
     }
 
 
@@ -90,7 +90,9 @@ def test_console_command_declared():
 )
 def test_command_help_uses_command_name_and_module_default(monkeypatch, capsys, program, expected):
     assert invoke_main(monkeypatch, ['--help'], program=program) == 0
-    assert f'Usage: {expected} ' in Text.from_ansi(capsys.readouterr().out).plain
+    plain = Text.from_ansi(capsys.readouterr().out).plain
+    assert plain.startswith('euc2k: EasyEDA User Contributed To KiCad')
+    assert f'Usage: {expected} ' in plain
 
 
 def test_installed_console_command(tmp_path):
@@ -98,7 +100,7 @@ def test_installed_console_command(tmp_path):
     import sysconfig
     from pathlib import Path
 
-    from easyeda2kicad_local import __version__
+    from euc2k import __version__
 
     executable = Path(sysconfig.get_path('scripts')) / (
         'euc2k.exe' if sys.platform == 'win32' else 'euc2k'
@@ -112,7 +114,7 @@ def test_installed_console_command(tmp_path):
         timeout=30,
     )
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == f'EasyEDA-Std.-2Kicad {__version__}'
+    assert result.stdout.strip() == f'euc2k {__version__}'
     # Exercise no-argument prompts through the installed wrapper from another
     # directory, where no source checkout or default links.txt is available.
     interactive = subprocess.run(
@@ -171,7 +173,7 @@ def test_403_stops_run_with_friendly_fix(monkeypatch, tmp_path, capsys):
     from test_client import make_client
 
     client, clock, calls = make_client([403, 429])
-    monkeypatch.setattr('easyeda2kicad_local.workflow.EasyEDAClient', lambda delay: client)
+    monkeypatch.setattr('euc2k.workflow.EasyEDAClient', lambda delay: client)
     assert invoke_main(monkeypatch, [NEW, OLD, '-o', str(tmp_path)]) == 1
     captured = capsys.readouterr()
     assert 'Wait before retrying' in captured.err
@@ -196,7 +198,7 @@ def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
         [
             sys.executable,
             '-m',
-            'easyeda2kicad_local',
+            'euc2k',
             'convert',
             response['result']['uuid'],
             '-o',
@@ -213,10 +215,10 @@ def test_unicode_output_with_legacy_console_encoding(response, tmp_path):
 
 
 def test_version_entrypoint(monkeypatch, capsys):
-    from easyeda2kicad_local import __version__
+    from euc2k import __version__
 
     assert invoke_main(monkeypatch, ['--version']) == 0
-    assert capsys.readouterr().out.strip() == f'EasyEDA-Std.-2Kicad {__version__}'
+    assert capsys.readouterr().out.strip() == f'euc2k {__version__}'
 
 
 def test_version_matches_project_and_installed_metadata():
@@ -224,7 +226,7 @@ def test_version_matches_project_and_installed_metadata():
     from importlib.metadata import version
     from pathlib import Path
 
-    from easyeda2kicad_local import __version__
+    from euc2k import __version__
 
     project = tomllib.loads((Path(__file__).parents[1] / 'pyproject.toml').read_text())
-    assert project['project']['version'] == __version__ == version('EasyEDA-Std.-2Kicad')
+    assert project['project']['version'] == __version__ == version('euc2k')

@@ -5,12 +5,12 @@ import json
 import pytest
 from test_workflow import install_cache, snapshot
 
-from easyeda2kicad_local.converter import convert_response, write_conversion
-from easyeda2kicad_local.footprint import parse_pad
-from easyeda2kicad_local.publication import libraries_complete
-from easyeda2kicad_local.sexpr import children, loads
-from easyeda2kicad_local.shared import Coordinates, svg_graphics
-from easyeda2kicad_local.workflow import run_items
+from euc2k.converter import convert_response, write_conversion
+from euc2k.footprint import parse_pad
+from euc2k.publication import libraries_complete
+from euc2k.sexpr import children, loads
+from euc2k.shared import Coordinates, svg_graphics
+from euc2k.workflow import run_items
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@ from pathlib import Path
 
 def ensure_installed(root):
     """Refresh an editable install only when its dependency declaration changes."""
-    marker = root / '.venv' / '.ee2kicad-ready'
+    marker = root / '.venv' / '.euc2k-ready'
     try:
         digest = hashlib.sha256((root / 'pyproject.toml').read_bytes()).hexdigest()
         try:

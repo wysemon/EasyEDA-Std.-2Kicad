@@ -21,8 +21,8 @@ from .sexpr import children, contains, descendants, loads
 from .symbol import symbol_units
 
 log = logging.getLogger(__name__)
-COMPLETE = '.ee2kicad-complete.json'
-PENDING = '.ee2kicad-pending.json'
+COMPLETE = '.euc2k-complete.json'
+PENDING = '.euc2k-pending.json'
 
 
 def digest(path):
@@ -91,7 +91,7 @@ def footprint_has_model(path):
 
 
 def source_counts(folder):
-    """Count expected electrical records to catch incomplete legacy exports.
+    """Count expected electrical records to catch incomplete exports.
 
     KiCad represents source PAD, VIA and HOLE records as pads. Counts preserve
     duplicate pins and do not require one-to-one symbol/footprint numbering.
@@ -168,13 +168,15 @@ def valid_library(path, symbol=False, expected=None, uuid=None, *, has_footprint
     return tree[0] in ('footprint', 'module') and bool(pads) and not contains(tree, 'model')
 
 
-def libraries_complete(folder, *, expected_uuid=None):
-    """Check committed hashes; accept structurally usable pre-manifest 2D output."""
+def libraries_complete(folder, *, expected_uuid=None, require_manifest=True):
+    """Require a recognized completion manifest; staging can check structure only."""
     if (folder / PENDING).exists():
         return False
     try:
         counts = source_counts(folder)
         manifest = folder / COMPLETE
+        if require_manifest and not manifest.is_file():
+            return False
         if manifest.exists():
             data = json.loads(read_limited(manifest))
             if data['version'] != 1 or not isinstance(data['files'], dict):
@@ -228,7 +230,7 @@ def recover(folder):
     backup_name = data['backup']
     if (
         data['version'] != 1
-        or not backup_name.startswith('.ee2kicad-backup-')
+        or not backup_name.startswith('.euc2k-backup-')
         or Path(backup_name).name != backup_name
     ):
         raise ValueError('invalid recovery journal; preserve this folder and inspect it manually')
@@ -250,7 +252,7 @@ def recover(folder):
     journal.unlink()
     shutil.rmtree(backup)
     stage_name = data.get('stage', '')
-    if stage_name.startswith('.ee2kicad-stage-') and Path(stage_name).name == stage_name:
+    if stage_name.startswith('.euc2k-stage-') and Path(stage_name).name == stage_name:
         stage = local_path(folder.parent, stage_name)
         if stage.exists():
             shutil.rmtree(stage)
@@ -262,7 +264,7 @@ def publish(stage, folder, paths):
     folder.mkdir(parents=True, exist_ok=True)
     recover(folder)
     paths = [*paths, COMPLETE]
-    backup = Path(tempfile.mkdtemp(prefix='.ee2kicad-backup-', dir=folder))
+    backup = Path(tempfile.mkdtemp(prefix='.euc2k-backup-', dir=folder))
     entries = []
     try:
         for relative in paths:

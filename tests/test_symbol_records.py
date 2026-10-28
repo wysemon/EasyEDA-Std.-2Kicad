@@ -5,10 +5,10 @@ import json
 import pytest
 from conftest import FIXTURES
 
-from easyeda2kicad_local.converter import convert_response
-from easyeda2kicad_local.sexpr import children, descendants, loads
-from easyeda2kicad_local.shared import UNIT, Coordinates
-from easyeda2kicad_local.symbol import symbol_graphic, symbol_units
+from euc2k.converter import convert_response
+from euc2k.sexpr import children, descendants, loads
+from euc2k.shared import UNIT, Coordinates
+from euc2k.symbol import symbol_graphic, symbol_units
 
 BUZZER = '82015f7d9a6543b7b998917289a50b78'
 
