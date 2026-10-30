@@ -60,7 +60,7 @@ Never replace an existing release's artifacts or tag to update its README.
    Python with `--version` and `--fixtures` pointing to this checkout's fixtures.
    Verify the source distribution can build/install independently too.
 6. Test the website on desktop/mobile, review the diff, and commit with a message
-   such as `Release v1.4.1`. Push the release branch without force-pushing. Wait
+   such as `Release v1.4.2`. Push the release branch without force-pushing. Wait
    for all seven CI jobs, including the KiCad 8/9/10 matrix.
 
 ## Publish and deploy

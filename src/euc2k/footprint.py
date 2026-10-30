@@ -118,10 +118,15 @@ def parse_pad(raw, coords):
     kind = ('thru_hole' if plated else 'np_thru_hole') if through else 'smd'
     if through and radius <= 0:
         raise ValueError('through-hole pad without drill')
-    if through and num(t[13]) < 0:
+    hole_length = num(t[13]) * UNIT if through and len(t) > 13 else 0
+    if hole_length < 0:
         raise ValueError('negative drill-slot length')
-    hole_length = num(t[13]) * UNIT
-    if through and hole_length > 2 * radius + 0.01 and t[14] not in ('', 'undefined'):
+    if (
+        through
+        and len(t) > 14
+        and hole_length > 2 * radius + 0.01
+        and t[14] not in ('', 'undefined')
+    ):
         centers = [coords.point(*p) for p in point_pairs(t[14])]
         if len(centers) != 2:
             raise ValueError('slot must have exactly two hole-center points')

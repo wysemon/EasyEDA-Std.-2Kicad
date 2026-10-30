@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2 — 2026-10-30
+
+- Fix conversion of short rectangular SMD pad records that omit through-hole drill-slot fields, preserving front/back copper, paste and mask layers.
+- Keep the terminal demo cursor inline after the command when it wraps on mobile, preserving its spacing and animation.
+
 ## 1.4.1 — 2026-10-28
 
 - Publish the corrected README to PyPI, including the clickable inspiration credit and the pip-first Windows and Linux/macOS quick starts.
