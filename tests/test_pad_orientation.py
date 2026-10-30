@@ -236,3 +236,45 @@ print(json.dumps(dict(pads=pads, graphics=graphics, layers={'F.SilkS': int(pcbne
             ]
             assert len(matches) == 1
             assert all(min(math.dist(p, q) for q in points) < 0.0001 for p in matches[0]['points'])
+
+
+@pytest.mark.parametrize(
+    'raw,side,number',
+    [
+        (
+            'PAD~RECT~400~300~31.496~3.937~1~~1~0.001~'
+            '384.252 298.0315 415.748 298.0315 415.748 301.9685 384.252 301.9685~0~gge5',
+            'F',
+            '1',
+        ),
+        (
+            'PAD~RECT~400~331.5~31.496~3.937~2~~2~0.001~'
+            '384.252 329.5315 415.748 329.5315 415.748 333.4685 384.252 333.4685~0~gge11',
+            'B',
+            '2',
+        ),
+    ],
+)
+def test_short_electrode_smd_pads(raw, side, number):
+    pad = parse_pad(raw, Coordinates(document({'origin': [400, 300]}, raw)))
+    assert pad.kind == 'smd'
+    assert pad.shape == 'rect'
+    assert pad.number == number
+    assert (pad.width, pad.height) == pytest.approx((8.0, 1.0), abs=0.0001)
+    assert pad.layers == f'"{side}.Cu" "{side}.Paste" "{side}.Mask"'
+    assert pad.drill == pad.hole_length == 0
+    assert not pad.polygon
+    rendered = sexpr(pad.render())
+    assert one(rendered, 'layers')[1:] == [f'{side}.{layer}' for layer in ('Cu', 'Paste', 'Mask')]
+    assert not any(isinstance(item, list) and item[0] == 'drill' for item in rendered)
+
+
+@pytest.mark.parametrize('field_count', [13, 14, 15, 16])
+def test_through_hole_optional_slot_fields(field_count):
+    raw = 'PAD~RECT~400~300~20~10~11~~1~2~~0~test~0~~Y'
+    raw = '~'.join(raw.split('~')[:field_count])
+    pad = parse_pad(raw, Coordinates(document({'origin': [400, 300]}, raw)))
+    assert pad.kind == 'thru_hole'
+    assert pad.drill == pytest.approx(1.016)
+    assert pad.hole_length == 0
+    assert one(sexpr(pad.render()), 'drill')[1:] == ['1.016']

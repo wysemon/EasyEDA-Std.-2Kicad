@@ -96,7 +96,8 @@ h3{font-size:20px;line-height:1.3;letter-spacing:-.02em;font-weight:600;margin:0
 .terminal{padding:12px 28px 32px;font:13px/1.9 var(--mono);min-width:0}
 .terminal-command{display:flex;align-items:baseline;gap:10px;min-height:50px;margin-bottom:14px;overflow-wrap:anywhere;line-height:1.7}
 .command-prompt{color:var(--term-green)}
-.terminal-cursor{width:7px;height:15px;background:var(--term-green);flex-shrink:0;align-self:flex-start;margin-top:4px}
+.command-text{min-width:0;word-break:break-all}
+.terminal-cursor{display:inline-block;width:7px;height:15px;background:var(--term-green);margin-left:10px;vertical-align:-5px}
 .terminal-cursor.typing{animation:blink .7s step-end 10}
 .terminal-cursor.finished{display:none}
 .output-line{transition:opacity .22s,transform .22s}
